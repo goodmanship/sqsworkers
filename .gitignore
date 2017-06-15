@@ -1,0 +1,11 @@
+/*.egg-info/
+*.pyc
+.DS_Store
+.cache
+.coverage
+.eggs
+/.ve/
+/__pycache__/
+/build/
+/dist/
+/demo/.ve/
