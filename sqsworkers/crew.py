@@ -111,7 +111,7 @@ class Worker(CrewMember):
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception as e:
-            self.crew.sentry.captureException() if 'sentry' else None
+            self.crew.sentry.captureException() if 'sentry' in self.crew else None
             log_uncaught_exception(e, logger=self.logger, context={'worker_name': self.worker_name, 'crew_name': self.crew.crew_name})
 
     def run(self):
