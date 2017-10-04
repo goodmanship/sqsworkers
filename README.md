@@ -7,6 +7,7 @@ Versions
 ========
 
     0.1.2 - initial version
+    0.1.4 - support for elasticmq
 
 Usage
 ======
@@ -17,6 +18,7 @@ A basic call to SQS Workers would look like this:
 options = {
     'sqs_session': sqs_session,
     'queue_name': 'ddev-test-queue',
+    'sqs_resource': sqs_resource,
     'MessageProcessor': MsgProcessor,
     'logger': msg_logger,
     'statsd': statsd,
