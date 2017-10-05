@@ -6,6 +6,7 @@ SQS Workers gives the ability to process messages off an SQS queue using multipl
 Versions
 ========
 
+    0.1.6 - bugfix for emptry sentry client
     0.1.5 - bugfix for pip install
     0.1.4 - support for elasticmq
     0.1.2 - initial version
