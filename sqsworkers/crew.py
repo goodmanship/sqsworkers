@@ -80,7 +80,7 @@ class Crew():
             self.supervisor = Supervisor(self)
             self.supervisor.start()
         except Exception as e:
-            self.sentry.captureException() if 'sentry' in self else None
+            self.sentry.captureException() if self.sentry else None
             raise
 
     def stop(self):
@@ -126,7 +126,7 @@ class Worker(CrewMember):
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception as e:
-            self.crew.sentry.captureException() if 'sentry' in self.crew else None
+            self.crew.sentry.captureException() if self.crew.sentry else None
             log_uncaught_exception(e, logger=self.logger, context={'worker_name': self.name, 'crew_name': self.crew.name})
 
     def run(self):
@@ -182,7 +182,7 @@ class Supervisor(CrewMember):
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception as e:
-            self.crew.sentry.captureException() if 'sentry' in self.crew else None
+            self.crew.sentry.captureException() if self.crew.sentry else None
             log_uncaught_exception(e, logger=self.crew.logger, context={'supervisor_name': self.name, 'crew_name': self.crew.name})
             self._wrap_run()
 
