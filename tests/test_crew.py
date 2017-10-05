@@ -17,7 +17,7 @@ class MsgProcessor():
 
 def test_crew_with_all_args():
     optionals = {
-        'sqs_session': None,
+        'sqs_session': 'fake session',
         'queue_name': 'something',
         'MessageProcessor': MsgProcessor,
         'logger': logging.getLogger('default'),
@@ -30,7 +30,7 @@ def test_crew_with_all_args():
 
 def test_crew_with_no_optionals():
     required_only = {
-        'sqs_session': None,
+        'sqs_session': 'fake session',
         'queue_name': 'something',
         'MessageProcessor': MsgProcessor,
         'logger': logging.getLogger('default'),
@@ -38,6 +38,26 @@ def test_crew_with_no_optionals():
     }
 
     assert crew.Crew(**required_only).worker_limit == 10
+
+def test_crew_with_resource():
+    with_resource = {
+        'sqs_resource': 'resource',
+        'MessageProcessor': MsgProcessor,
+        'logger': logging.getLogger('default'),
+        'statsd': statsd
+    }
+
+    assert crew.Crew(**with_resource).sqs_resource == 'resource'
+
+def test_crew_without_sqs():
+    no_sqs = {
+        'MessageProcessor': MsgProcessor,
+        'logger': logging.getLogger('default'),
+        'statsd': statsd
+    }
+
+    with pytest.raises(TypeError):
+        crew.Crew(**no_sqs)
 
 # TODO: this test needs an sqs queue to work
 # def test_start():
