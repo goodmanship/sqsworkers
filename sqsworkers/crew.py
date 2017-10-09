@@ -55,7 +55,7 @@ class Crew():
         self.sqs_resource = kwargs['sqs_resource'] if 'sqs_resource' in kwargs else None
         self.MessageProcessor = kwargs['MessageProcessor']
         self.name = self.make_name(self.queue_name, self.sqs_resource)
-        self.logger = logging.LoggerAdapter(kwargs['logger'], extra={'extra': {'crew_name': self.name}})
+        self.logger = logging.LoggerAdapter(kwargs['logger'], extra={'extra': {'crew.name': self.name}})
         self.statsd = kwargs['statsd'] if 'statsd' in kwargs else DummyStatsd(self.logger)
         self.sentry = kwargs['sentry'] if 'sentry' in kwargs else None
         self.worker_limit = kwargs['worker_limit'] if 'worker_limit' in kwargs else 10
@@ -113,10 +113,10 @@ class Worker(CrewMember):
         self.sqs_resource = self.crew.sqs_resource
         self._real_run = self.run
         self.run = self._wrap_run
-        self.name = 'worker-%s-%s-%s' % (os.getpid(), currentThread().getName(), str(time.time()))
+        self.worker_name = 'worker-%s-%s-%s' % (os.getpid(), currentThread().getName(), str(time.time()))
         self.queue_name = self.crew.queue_name
-        self.crew.logger.info('new worker starting with name: %s' % (self.name))
-        self.logger = logging.LoggerAdapter(self.crew.logger, extra={'extra': {'worker_name': self.name, 'crew_name': self.crew.name}})
+        self.crew.logger.info('new worker starting with name: %s' % (self.worker_name))
+        self.logger = logging.LoggerAdapter(self.crew.logger, extra={'extra': {'worker_name': self.worker_name, 'crew.name': self.crew.name}})
         self.logger = self.crew.logger
         CrewMember.__init__(self)
 
@@ -127,10 +127,10 @@ class Worker(CrewMember):
             raise
         except Exception as e:
             self.crew.sentry.captureException() if self.crew.sentry else None
-            log_uncaught_exception(e, logger=self.logger, context={'worker_name': self.name, 'crew_name': self.crew.name})
+            log_uncaught_exception(e, logger=self.logger, context={'worker_name': self.worker_name, 'crew.name': self.crew.name})
 
     def run(self):
-        self.logger.info('thread %s starting now' % self.name)
+        self.logger.info('thread %s starting now' % self.worker_name)
         if self.sqs_resource == None:
             sqs_connection = self.sqs_session.resource('sqs', region_name=self.sqs_session.region_name)
             self.queue = sqs_connection.get_queue_by_name(QueueName=self.queue_name)
@@ -172,7 +172,7 @@ class Supervisor(CrewMember):
     def __init__(self, crew):
         self._real_run = self.run
         self.run = self._wrap_run
-        self.name = 'supervisor-%s-%s' % (os.getpid(), str(time.time()))
+        self.supervisor_name = 'supervisor-%s-%s' % (os.getpid(), str(time.time()))
         self.crew = crew
         CrewMember.__init__(self)
 
@@ -183,7 +183,7 @@ class Supervisor(CrewMember):
             raise
         except Exception as e:
             self.crew.sentry.captureException() if self.crew.sentry else None
-            log_uncaught_exception(e, logger=self.crew.logger, context={'supervisor_name': self.name, 'crew_name': self.crew.name})
+            log_uncaught_exception(e, logger=self.crew.logger, context={'supervisor_name': self.supervisor_name, 'crew.name': self.crew.name})
             self._wrap_run()
 
     def run(self):
@@ -193,18 +193,18 @@ class Supervisor(CrewMember):
 
     def supervise(self):
         good_workers = []
-        self.crew.logger.info('supervising %s worker on workers: %s' % (self.name, self.crew.workers))
+        self.crew.logger.info('supervising %s worker on workers: %s' % (self.supervisor_name, self.crew.workers))
         for worker in self.crew.workers:
             if worker.is_alive():
-                self.crew.logger.info('worker %s is alive' % (worker.name))
+                self.crew.logger.info('worker %s is alive' % (worker.worker_name))
                 good_workers.append(worker)
             else:
-                self.crew.logger.warn('worker %s is dead, hiring a new one...' % (worker.name))
+                self.crew.logger.warn('worker %s is dead, hiring a new one...' % (worker.worker_name))
                 self.crew.statsd.increment('workers.dead', 1, tags=[self.crew.name])
                 new_worker = Worker(self.crew)
-                self.crew.logger.info('hired a new worker %s, staring it up...' % (new_worker.name))
+                self.crew.logger.info('hired a new worker %s, staring it up...' % (new_worker.worker_name))
                 new_worker.start()
-                self.crew.logger.info('started a new worker %s' % (new_worker.name))
+                self.crew.logger.info('started a new worker %s' % (new_worker.worker_name))
                 good_workers.append(new_worker)
         self.crew.logger.info('total number of workers after supervision: %s' % (str(len(good_workers))))
         self.crew.statsd.gauge('workers.employed', len(good_workers), tags=[self.crew.name])
