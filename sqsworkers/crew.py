@@ -1,6 +1,5 @@
 import logging
 import os
-import raven
 import re
 from threading import Thread, currentThread
 import time
