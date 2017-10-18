@@ -146,6 +146,7 @@ class Worker(CrewMember):
         while self.employed:
             messages = self.queue.receive_messages(
                 AttributeNames=['All'],
+                MessageAttributeNames=['All'],
                 MaxNumberOfMessages=1,
                 WaitTimeSeconds=5
             )

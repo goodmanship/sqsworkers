@@ -11,7 +11,7 @@ Versions
 ========
 
 ::
-
+    0.1.9 - get messageattributenames 
     0.1.8 - tweaks for public pypi
     0.1.7 - bugfix for thread naming
     0.1.6 - bugfix for emptry sentry client
