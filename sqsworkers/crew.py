@@ -148,7 +148,7 @@ class Worker(CrewMember):
                 AttributeNames=['All'],
                 MessageAttributeNames=['All'],
                 MaxNumberOfMessages=1,
-                WaitTimeSeconds=5
+                WaitTimeSeconds=20
             )
             if len(messages) > 0:
                 self.logger.info('processing %s messages %s' % (len(messages), messages))
