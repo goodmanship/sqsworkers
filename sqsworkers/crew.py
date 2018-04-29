@@ -35,6 +35,7 @@ class DummyStatsd():
 class Crew():
     # options = {
     #  @  'sqs_session': None,
+    #  @  'credentials_callback_function': None,
     #  @  'queue_name': 'name',
     #  @  'sqs_resource': 'resource',
     #  *  'MessageProcessor': MsgProcessor,
@@ -49,17 +50,27 @@ class Crew():
     def __init__(self, **kwargs):
         self.workers = []
         self.supervisor = None
+        self.logger = logging.LoggerAdapter(kwargs['logger'], extra={'extra': {'crew.name': self.name}})
+        self.sentry = kwargs['sentry'] if 'sentry' in kwargs else None
+
         self.sqs_session = kwargs['sqs_session'] if 'sqs_session' in kwargs else None
+        self.credentials_callback_function = \
+            kwargs['credentials_callback_function'] if 'credentials_callback_function' in kwargs else None
+        self._validate_session()
+
         self.queue_name = kwargs['queue_name'] if 'queue_name' in kwargs else None
         self.sqs_resource = kwargs['sqs_resource'] if 'sqs_resource' in kwargs else None
         self.MessageProcessor = kwargs['MessageProcessor']
         self.name = self.make_name(self.queue_name, self.sqs_resource)
-        self.logger = logging.LoggerAdapter(kwargs['logger'], extra={'extra': {'crew.name': self.name}})
         self.statsd = kwargs['statsd'] if 'statsd' in kwargs else DummyStatsd(self.logger)
-        self.sentry = kwargs['sentry'] if 'sentry' in kwargs else None
         self.worker_limit = kwargs['worker_limit'] if 'worker_limit' in kwargs else 10
         if not ((self.sqs_session and self.queue_name) or self.sqs_resource):
             raise TypeError('Required arguments not provided.  Either provide (sqs_session + queue_name) or sqs_resource.')
+
+    def _validate_session(self):
+        if not((self.sqs_session is not None) or (self.credentials_callback_function is not None)):
+            self.logger.error("No valid way to retrieve session. Please pass a session or credentials_callback_function")
+            raise ValueError
 
     def make_name(self, name, url):
         try:
@@ -109,6 +120,7 @@ class Worker(CrewMember):
     def __init__(self, crew):
         self.crew = crew
         self.sqs_session = self.crew.sqs_session
+        self.credentials_callback_function = self.crew.credentials_callback_function
         self.sqs_resource = self.crew.sqs_resource
         self._real_run = self.run
         self.run = self._wrap_run
@@ -130,8 +142,9 @@ class Worker(CrewMember):
 
     def run(self):
         self.logger.info('thread %s starting now' % self.worker_name)
-        if self.sqs_resource == None:
-            sqs_connection = self.sqs_session.resource('sqs', region_name=self.sqs_session.region_name)
+        if self.sqs_resource is None:
+            session = self.credentials_callback_function() if self.sqs_session is None else self.sqs_session
+            sqs_connection = session.resource('sqs', region_name=self.sqs_session.region_name)
             self.queue = sqs_connection.get_queue_by_name(QueueName=self.queue_name)
         else:
             self.queue = self.crew.sqs_resource
