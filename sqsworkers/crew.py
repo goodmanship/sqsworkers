@@ -160,15 +160,15 @@ class Worker(CrewMember):
                     AttributeNames=['All'],
                     MessageAttributeNames=['All'],
                     VisibilityTimeout=self.visibility_timeout,
-                    MaxNumberOfMessages=1,
-                    WaitTimeSeconds=5
+                    MaxNumberOfMessages=self.max_number_of_messages,
+                    WaitTimeSeconds=self.wait_time
                 )
             else:
                 messages = self.queue.receive_messages(
                     AttributeNames=['All'],
                     MessageAttributeNames=['All'],
-                    MaxNumberOfMessages=1,
-                    WaitTimeSeconds=5
+                    MaxNumberOfMessages=self.max_number_of_messages,
+                    WaitTimeSeconds=self.wait_time
                 )
             if len(messages) > 0:
                 self.logger.info('processing %s messages %s' % (len(messages), messages))
