@@ -11,6 +11,7 @@ Versions
 ========
 
 ::
+    0.1.11 - customize queue polling
     0.1.10 - increase to max wait time for polling
     0.1.9 - get messageattributenames 
     0.1.8 - tweaks for public pypi

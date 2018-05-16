@@ -41,7 +41,11 @@ class Crew():
     #  *  'logger': logging.getLogger('default'),
     #     'statsd': Dummy,
     #     'sentry': Default,
-    #     'worker_limit': 10
+    #     'worker_limit': 10,
+    #     'max_number_of_messages': 1,
+    #     'visibility_timeout': None,
+    #     'wait_time': 5
+    #
     # }
     # * = required
     # @ = required: (session + name) or (url)
@@ -58,6 +62,10 @@ class Crew():
         self.statsd = kwargs['statsd'] if 'statsd' in kwargs else DummyStatsd(self.logger)
         self.sentry = kwargs['sentry'] if 'sentry' in kwargs else None
         self.worker_limit = kwargs['worker_limit'] if 'worker_limit' in kwargs else 10
+        self.max_number_of_messages = kwargs['max_number_of_messages'] if 'max_number_of_messages' in kwargs else 1
+        self.visibility_timeout = kwargs['visibility_timeout'] if 'visibility_timeout' in kwargs else None
+        self.wait_time = kwargs['wait_time'] if 'wait_time' in kwargs else 5
+
         if not ((self.sqs_session and self.queue_name) or self.sqs_resource):
             raise TypeError('Required arguments not provided.  Either provide (sqs_session + queue_name) or sqs_resource.')
 
@@ -114,6 +122,9 @@ class Worker(CrewMember):
         self.run = self._wrap_run
         self.worker_name = 'worker-%s-%s-%s' % (os.getpid(), currentThread().getName(), str(time.time()))
         self.queue_name = self.crew.queue_name
+        self.max_number_of_messages = self.crew.max_number_of_messages
+        self.wait_time = self.crew.wait_time
+        self.visibility_timeout = self.crew.visibility_timeout
         self.crew.logger.info('new worker starting with name: %s' % (self.worker_name))
         self.logger = logging.LoggerAdapter(self.crew.logger, extra={'extra': {'worker_name': self.worker_name, 'crew.name': self.crew.name}})
         self.logger = self.crew.logger
@@ -144,12 +155,21 @@ class Worker(CrewMember):
 
     def poll_queue(self):
         while self.employed:
-            messages = self.queue.receive_messages(
-                AttributeNames=['All'],
-                MessageAttributeNames=['All'],
-                MaxNumberOfMessages=1,
-                WaitTimeSeconds=20
-            )
+            if self.visibility_timeout:
+                messages = self.queue.receive_messages(
+                    AttributeNames=['All'],
+                    MessageAttributeNames=['All'],
+                    VisibilityTimeout=self.visibility_timeout,
+                    MaxNumberOfMessages=1,
+                    WaitTimeSeconds=5
+                )
+            else:
+                messages = self.queue.receive_messages(
+                    AttributeNames=['All'],
+                    MessageAttributeNames=['All'],
+                    MaxNumberOfMessages=1,
+                    WaitTimeSeconds=5
+                )
             if len(messages) > 0:
                 self.logger.info('processing %s messages %s' % (len(messages), messages))
                 processor = self.crew.MessageProcessor(messages[0])
