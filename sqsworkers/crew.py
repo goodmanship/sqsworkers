@@ -43,7 +43,6 @@ class Crew():
     #     'sentry': Default,
     #     'worker_limit': 10,
     #     'max_number_of_messages': 1,
-    #     'visibility_timeout': None,
     #     'wait_time': 5
     #
     # }
