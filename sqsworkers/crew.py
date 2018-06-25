@@ -4,6 +4,7 @@ import re
 from threading import Thread, currentThread
 import time
 import traceback
+import json
 
 
 # logging util function
@@ -157,25 +158,41 @@ class Worker(CrewMember):
                 MessageAttributeNames=['All'],
                 MaxNumberOfMessages=self.max_number_of_messages,
                 WaitTimeSeconds=self.wait_time)
-
             if len(messages) > 0:
-                for message in messages:
-                    self.logger.info('processing %s messages %s' % (len(messages), messages))
-                    processor = self.crew.MessageProcessor(message)
-                    self.crew.statsd.increment('process.record.start', 1, tags=[])
-                    processed = processor.start()
-                    if processed:
-                        deleted = self.queue.delete_messages(
-                            Entries=[{
-                                'Id': message.message_id,
-                                'ReceiptHandle': message.receipt_handle
-                            }]
-                        )
-                        self.crew.statsd.increment('process.record.success', 1, tags=[])
-                        self.logger.info('%s messages processed successfully and deleted %s' % (len(messages), deleted))
-                    else:
-                        self.crew.statsd.increment('process.record.failure', 1, tags=[])
+                try:
+                    for message in messages:
+                        self.logger.info('processing %s messages %s' % (len(messages), messages))
+                        processor = self.crew.MessageProcessor(message)
+                        self.crew.statsd.increment('process.record.start', 1, tags=[])
+                        processed = processor.start()
+                        if processed:
+                            deleted = self.queue.delete_messages(
+                                Entries=[{
+                                    'Id': message.message_id,
+                                    'ReceiptHandle': message.receipt_handle
+                                }]
+                            )
+                            self.crew.statsd.increment('process.record.success', 1, tags=[])
+                            self.logger.info('%s messages processed successfully and deleted %s' % (len(messages), deleted))
+                        else:
+                            self.crew.statsd.increment('process.record.failure', 1, tags=[])
+                except Exception as e:
+                    self.excepton_handler(e, message, {'crew.name': self.name})
+                    # continue with the next message and do not delete
+                    pass
 
+    def exception_handler(self, e, message, extra_info):
+        failed_message_body = json.loads(message.body)
+        failed_streamhub_event_id = failed_message_body.get('eventId')
+        failed_streamhub_event_type = failed_message_body.get('type')
+        failed_streamhub_event_schema = failed_message_body.get('schema')
+        extra_info = {
+            'streamhub_event_id': failed_streamhub_event_id,
+            'streamhub_event_type': failed_streamhub_event_type,
+            'streamhub_event_schema': failed_streamhub_event_schema
+        }
+        self.logger.error('There was an error processing the message.', extra=extra_info)
+        self.logger.error(e, extra=extra_info)
 
 class Supervisor(CrewMember):
     def __init__(self, crew):
