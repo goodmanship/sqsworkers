@@ -5,6 +5,7 @@ from threading import Thread, currentThread
 import time
 import traceback
 import json
+import sys
 
 
 # logging util function
@@ -64,6 +65,8 @@ class Crew():
         self.worker_limit = kwargs['worker_limit'] if 'worker_limit' in kwargs else 10
         self.max_number_of_messages = kwargs['max_number_of_messages'] if 'max_number_of_messages' in kwargs else 1
         self.wait_time = kwargs['wait_time'] if 'wait_time' in kwargs else 20
+        self.exception_handler_function = kwargs['exception_handler'] if 'exception_handler' in kwargs else \
+                                          'default_exception_handler'
 
         if not ((self.sqs_session and self.queue_name) or self.sqs_resource):
             raise TypeError('Required arguments not provided.  Either provide (sqs_session + queue_name) or sqs_resource.')
@@ -126,6 +129,7 @@ class Worker(CrewMember):
         self.crew.logger.info('new worker starting with name: %s' % (self.worker_name))
         self.logger = logging.LoggerAdapter(self.crew.logger, extra={'extra': {'worker_name': self.worker_name, 'crew.name': self.crew.name}})
         self.logger = self.crew.logger
+        self.exception_handler_function = self.crew.exception_handler_function
         CrewMember.__init__(self)
 
     def _wrap_run(self):
@@ -159,8 +163,8 @@ class Worker(CrewMember):
                 MaxNumberOfMessages=self.max_number_of_messages,
                 WaitTimeSeconds=self.wait_time)
             if len(messages) > 0:
-                try:
-                    for message in messages:
+                for message in messages:
+                    try:
                         self.logger.info('processing %s messages %s' % (len(messages), messages))
                         processor = self.crew.MessageProcessor(message)
                         self.crew.statsd.increment('process.record.start', 1, tags=[])
@@ -176,12 +180,14 @@ class Worker(CrewMember):
                             self.logger.info('%s messages processed successfully and deleted %s' % (len(messages), deleted))
                         else:
                             self.crew.statsd.increment('process.record.failure', 1, tags=[])
-                except Exception as e:
-                    self.excepton_handler(e, message, {'crew.name': self.name})
-                    # continue with the next message and do not delete
-                    pass
+                    except Exception as e:
+                        # select which exception handler to call based on the argument passed
+                        getattr(self, self.exception_handler_function)(e, message)
+                        # continue with the next message and do not delete
+                        pass
 
-    def exception_handler(self, e, message, extra_info):
+    # custom exception handler function
+    def custom_exception_handler(self, e, message):
         failed_message_body = json.loads(message.body)
         failed_streamhub_event_id = failed_message_body.get('eventId')
         failed_streamhub_event_type = failed_message_body.get('type')
@@ -191,8 +197,12 @@ class Worker(CrewMember):
             'streamhub_event_type': failed_streamhub_event_type,
             'streamhub_event_schema': failed_streamhub_event_schema
         }
-        self.logger.error('There was an error processing the message.', extra=extra_info)
-        self.logger.error(e, extra=extra_info)
+        self.logger.error('There was an error processing the message %s' % e)
+        self.logger.error(extra_info)
+
+    # default exception handler function - this is called by default if no exception handler is specified while instantiating the crew
+    def default_exception_handler(self, e, message):
+        self.logger.error('There was an error processing the message %s' % e)
 
 class Supervisor(CrewMember):
     def __init__(self, crew):
