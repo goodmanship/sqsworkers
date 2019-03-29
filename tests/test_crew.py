@@ -14,6 +14,14 @@ class MsgProcessor():
     def start(self):
         logging.getLogger('default').info('processed')
 
+class BulkMsgProcessor:
+    def __init__(self):
+        logging.getLogger('default').info('bulk msg processor instantiated')
+
+    def start(self):
+        logging.getLogger('default').info('processed')
+        return [True, False]
+
 
 def test_crew_with_all_args():
     optionals = {
@@ -38,6 +46,18 @@ def test_crew_with_no_optionals():
     }
 
     assert crew.Crew(**required_only).worker_limit == 10
+
+def test_crew_with_bulk_msg_processor():
+    required_only = {
+        'sqs_session': 'fake session',
+        'queue_name': 'something',
+        'MessageProcessor': BulkMsgProcessor,
+        'logger': logging.getLogger('default'),
+        'statsd': statsd,
+        'bulk_mode': True
+    }
+
+    assert crew.Crew(**required_only).MessageProcessor == BulkMsgProcessor
 
 def test_crew_with_resource():
     with_resource = {

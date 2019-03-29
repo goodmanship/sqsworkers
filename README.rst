@@ -11,6 +11,7 @@ Versions
 ========
 
 ::
+    0.1.13 - support bulk message processor
     0.1.12 - adding exception handler
     0.1.11 - customize queue polling
     0.1.10 - increase to max wait time for polling
