@@ -69,6 +69,8 @@ class Crew():
         self.worker_limit = kwargs['worker_limit'] if 'worker_limit' in kwargs else 10
         self.max_number_of_messages = kwargs['max_number_of_messages'] if 'max_number_of_messages' in kwargs else 1
         self.wait_time = kwargs['wait_time'] if 'wait_time' in kwargs else 20
+        # bulk_mode causes sqsworkers to hand over all messages to
+        # MsgProcessor instance at once facilitating bulk operations downstream
         self.bulk_mode = kwargs['bulk_mode'] if 'bulk_mode' in kwargs else False
         self.exception_handler_function = kwargs['exception_handler'] if 'exception_handler' in kwargs else \
                                           'default_exception_handler'
@@ -121,7 +123,7 @@ class CrewMember(Thread):
 
 
 class Worker(CrewMember):
-    def __init__(self, crew):
+    def __init__(self, crew, **kwargs):
         self.crew = crew
         self.sqs_session = self.crew.sqs_session
         self.sqs_resource = self.crew.sqs_resource
@@ -162,6 +164,7 @@ class Worker(CrewMember):
         self.poll_queue()
 
     def poll_queue(self):
+
         def delete_from_sqs(entries):
             try:
                 delete_statuses = self.queue.delete_messages(entries)
@@ -185,7 +188,7 @@ class Worker(CrewMember):
                               # and avoid falsely negative statsd
                 if processed:
                     entries.append({
-                        'Id': message.message_id,
+                        'Id':  message.message_id,
                         'ReceiptHandle': message.receipt_handle
                     })
                     if not self.bulk_mode or len(entries) > 9:
@@ -202,11 +205,10 @@ class Worker(CrewMember):
                 MessageAttributeNames=['All'],
                 MaxNumberOfMessages=self.max_number_of_messages,
                 WaitTimeSeconds=self.wait_time)
-
             if len(messages) > 0:
                 processed_list = []
                 if self.bulk_mode:
-                    self.logger.debug('processing %s messages %s' % (len(messages), messages))
+                    self.logger.error('processing %s messages %s' % (len(messages), messages))
                     processor = self.crew.MessageProcessor(messages)
                     self.crew.statsd.increment('process.record.start', len(messages), tags=[])
                     processed_list += processor.start()

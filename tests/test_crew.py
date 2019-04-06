@@ -2,26 +2,16 @@ from datadog import statsd
 import logging
 import os
 import pytest
+import mock
 import sys
+
+from setups import mock_sqs_session
+from setups import MockAWSAccount
+from setups import MsgProcessor
+from setups import BulkMsgProcessor
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'sqsworkers')))
-
 import crew
-
-class MsgProcessor():
-    def __init__(self):
-        logging.getLogger('default').info('msg processor instantiated')
-
-    def start(self):
-        logging.getLogger('default').info('processed')
-
-class BulkMsgProcessor:
-    def __init__(self):
-        logging.getLogger('default').info('bulk msg processor instantiated')
-
-    def start(self):
-        logging.getLogger('default').info('processed')
-        return [True, False]
-
 
 def test_crew_with_all_args():
     optionals = {
@@ -78,6 +68,31 @@ def test_crew_without_sqs():
 
     with pytest.raises(TypeError):
         crew.Crew(**no_sqs)
+
+
+@mock_sqs_session(n_msgs=10)
+def test_bulk_start(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
+    import time
+    import setups
+    logger = logging.getLogger('default')
+    required_only = {
+        'sqs_session': sqs_session,
+        'queue_name': sqs_queue_name,
+        'MessageProcessor': BulkMsgProcessor,
+        'logger': logger,
+        'statsd': statsd,
+        'worker_limit': 1,
+        'max_number_of_messages': 10,
+        'bulk_mode': True
+    }
+
+    c = crew.Crew(**required_only)
+    c.start()
+    assert(setups.false_aws.receive_count == 1)
+    time.sleep(1)
+    c.stop()
+    assert(setups.false_aws.delete_count == 1)
+
 
 # TODO: this test needs an sqs queue to work
 # def test_start():
