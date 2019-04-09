@@ -1,4 +1,0 @@
-datadog
-boto3
-pytest
-mock

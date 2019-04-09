@@ -5,12 +5,13 @@ import pytest
 import mock
 import sys
 
-from setups import mock_sqs_session
-from setups import MockAWSAccount
-from setups import MsgProcessor
-from setups import BulkMsgProcessor
-
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'sqsworkers')))
+from helpers import mock_sqs_session
+from helpers import MockAWSAccount
+from helpers import MsgProcessor
+from helpers import BulkMsgProcessor
+from helpers import aws_adapter_for_testing
+
 import crew
 
 def test_crew_with_all_args():
@@ -73,7 +74,6 @@ def test_crew_without_sqs():
 @mock_sqs_session(n_msgs=10)
 def test_bulk_start(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
     import time
-    import setups
     logger = logging.getLogger('default')
     required_only = {
         'sqs_session': sqs_session,
@@ -87,11 +87,13 @@ def test_bulk_start(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **
     }
 
     c = crew.Crew(**required_only)
+    # When you really want to be sure about what code you are hitting
+    # assert(aws_adapter_for_testing.using_real_aws == False)
     c.start()
-    assert(setups.false_aws.receive_count == 1)
+    assert(aws_adapter_for_testing.receive_count == 1)
     time.sleep(1)
     c.stop()
-    assert(setups.false_aws.delete_count == 1)
+    assert(aws_adapter_for_testing.delete_count == 1)
 
 
 # TODO: this test needs an sqs queue to work

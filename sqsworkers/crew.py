@@ -123,7 +123,7 @@ class CrewMember(Thread):
 
 
 class Worker(CrewMember):
-    def __init__(self, crew, **kwargs):
+    def __init__(self, crew):
         self.crew = crew
         self.sqs_session = self.crew.sqs_session
         self.sqs_resource = self.crew.sqs_resource
@@ -168,9 +168,9 @@ class Worker(CrewMember):
         def delete_from_sqs(entries):
             try:
                 delete_statuses = self.queue.delete_messages(entries)
-                num_deleted = len(delete_statuses['Successful'])
+                num_deleted = len(delete_statuses['Successful']) if 'Successful' in delete_statuses else 0
                 self.crew.statsd.increment('process.record.success', num_deleted, tags=[])
-                num_not_deleted = len(delete_statuses['Failed'])
+                num_not_deleted = len(delete_statuses['Failed']) if 'Failed' in delete_statuses else 0
                 if num_not_deleted > 0:
                     self.logger.error('Delete unsuccessful for {} out of {} entries'
                                       .format(num_not_deleted, len(entries)))
@@ -226,7 +226,7 @@ class Worker(CrewMember):
                             getattr(self, self.exception_handler_function)(e, message)
                             # continue with the next message and do not delete
                             pass
-                            
+
 
     # custom exception handler function
     def custom_exception_handler(self, e, message):
