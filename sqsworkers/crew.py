@@ -76,7 +76,7 @@ class Crew():
                                           'default_exception_handler'
 
         if not ((self.sqs_session and self.queue_name) or self.sqs_resource):
-            raise TypeError('Required arguments not provided.  Either provide (sqs_session + queue_name) or sqs_resource.')
+            raise TypeError('Required arguments not provided. Either provide (sqs_session + queue_name) or sqs_resource.')
 
     def make_name(self, name, url):
         try:
@@ -174,6 +174,13 @@ class Worker(CrewMember):
                 if num_not_deleted > 0:
                     self.logger.error('Delete unsuccessful for {} out of {} entries'
                                       .format(num_not_deleted, len(entries)))
+                    for status in delete_statuses['Failed']:
+                        self.crew.statsd.increment('sqs.delete.failure', 1, tags=[])
+                        try:
+                            self.logger.error('id: {}, fault: {}, code: {}, message: {}'.format(status['id'],
+                                              status['SenderFault'], status['Code'], status['Message'])) 
+                        except KeyError:
+                            pass
             except Exception as e:
                 # select which exception handler to call based on the argument passed
                 getattr(self, self.exception_handler_function)(e, message)
@@ -188,7 +195,7 @@ class Worker(CrewMember):
                               # and avoid falsely negative statsd
                 if processed:
                     entries.append({
-                        'Id':  message.message_id,
+                        'Id': message.message_id,
                         'ReceiptHandle': message.receipt_handle
                     })
                     if not self.bulk_mode or len(entries) > 9:
@@ -198,6 +205,7 @@ class Worker(CrewMember):
                     self.crew.statsd.increment('process.record.failure', 1, tags=[])
             if len(entries) > 0:
                 delete_from_sqs(entries)
+                entries.clear()
 
         while self.employed:
             messages = self.queue.receive_messages(
@@ -206,13 +214,20 @@ class Worker(CrewMember):
                 MaxNumberOfMessages=self.max_number_of_messages,
                 WaitTimeSeconds=self.wait_time)
             if len(messages) > 0:
-                processed_list = []
                 if self.bulk_mode:
-                    self.logger.error('processing %s messages %s' % (len(messages), messages))
-                    processor = self.crew.MessageProcessor(messages)
+                    try:
+                        self.logger.info('processing %s messages %s' % (len(messages), messages))
+                        processor = self.crew.MessageProcessor(messages)
+                    except Exception as e:
+                        # select which exception handler to call based on the argument passed
+                        for message in messages:
+                            getattr(self, self.exception_handler_function)(e, message)
+                        # continue with the next message and do not delete
+                        pass
                     self.crew.statsd.increment('process.record.start', len(messages), tags=[])
-                    processed_list += processor.start()
-                    clear_processed(processed_list, messages)
+                    processed = processor.start()
+                    if processed is not None and isinstance(processed, list):
+                        clear_processed(processed, messages)
                 else:
                     for message in messages:
                         try:

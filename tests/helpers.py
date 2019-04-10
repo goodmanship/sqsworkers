@@ -35,10 +35,10 @@ class MockAWSAccount():
             self.sqs_queue_res = self.sqs_session.resource('sqs')
             self.sqs_queue = self.sqs_queue_res.get_queue_by_name(QueueName=sqs_queue_name)
             self.test_message='''{
-                "eventId": "f62cf1dd-1597-4b66-aeb1-1e569427a086",
+                "eventId": "blah123",
                 "payload": {
                     "env": "dev",
-                    "messageId": "ajs-0c33600179f415c9477c46ad824cb672",
+                    "messageId": "blah456",
                 },
                 "time": "2017-12-06T00:00:00.595Z",
             }'''

@@ -5,13 +5,13 @@ import pytest
 import mock
 import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'sqsworkers')))
 from helpers import mock_sqs_session
 from helpers import MockAWSAccount
 from helpers import MsgProcessor
 from helpers import BulkMsgProcessor
 from helpers import aws_adapter_for_testing
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'sqsworkers')))
 import crew
 
 def test_crew_with_all_args():
