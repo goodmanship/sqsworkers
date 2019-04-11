@@ -1,15 +1,15 @@
 from datadog import statsd
 import logging
+import mock
 import os
 import pytest
-import mock
 import sys
 
-from helpers import mock_sqs_session
-from helpers import MockAWSAccount
-from helpers import MsgProcessor
-from helpers import BulkMsgProcessor
 from helpers import aws_adapter_for_testing
+from helpers import BulkMsgProcessor
+from helpers import MockAWSAccount
+from helpers import mock_sqs_session
+from helpers import MsgProcessor
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'sqsworkers')))
 import crew
@@ -70,9 +70,8 @@ def test_crew_without_sqs():
     with pytest.raises(TypeError):
         crew.Crew(**no_sqs)
 
-
 @mock_sqs_session(n_msgs=10)
-def test_bulk_start(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
+def test_bulk_start_10_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
     import time
     logger = logging.getLogger('default')
     required_only = {
@@ -82,6 +81,7 @@ def test_bulk_start(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **
         'logger': logger,
         'statsd': statsd,
         'worker_limit': 1,
+        'wait_time': 20,
         'max_number_of_messages': 10,
         'bulk_mode': True
     }
@@ -90,10 +90,82 @@ def test_bulk_start(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **
     # When you really want to be sure about what code you are hitting
     # assert(aws_adapter_for_testing.using_real_aws == False)
     c.start()
-    assert(aws_adapter_for_testing.receive_count == 1)
-    time.sleep(1)
-    c.stop()
-    assert(aws_adapter_for_testing.delete_count == 1)
+    time.sleep(15)
+    try:
+        assert(aws_adapter_for_testing.delete_count == aws_adapter_for_testing.receive_count)
+        assert(aws_adapter_for_testing.delete_count == 10)
+    except:
+        aws_adapter_for_testing.reset()
+        c.stop()
+        raise
+    else:
+        aws_adapter_for_testing.reset()
+        c.stop()
+
+@mock_sqs_session(n_msgs=15)
+def test_bulk_start_15_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
+    import time
+    logger = logging.getLogger('default')
+    required_only = {
+        'sqs_session': sqs_session,
+        'queue_name': sqs_queue_name,
+        'MessageProcessor': BulkMsgProcessor,
+        'logger': logger,
+        'statsd': statsd,
+        'worker_limit': 1,
+        'wait_time': 20,
+        'max_number_of_messages': 10,
+        'bulk_mode': True
+    }
+
+    c = crew.Crew(**required_only)
+    # When you really want to be sure about what code you are hitting
+    # assert(aws_adapter_for_testing.using_real_aws == False)
+    c.start()
+    time.sleep(25)
+    try:
+        assert(aws_adapter_for_testing.delete_count == aws_adapter_for_testing.receive_count)
+        assert(aws_adapter_for_testing.delete_count == 15)
+    except:
+        aws_adapter_for_testing.reset()
+        c.stop()
+        raise
+    else:
+        aws_adapter_for_testing.reset()
+        c.stop()
+
+@mock_sqs_session(n_msgs=7, n_failed_processing=3)
+def test_bulk_start_proc_fails(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
+    import time
+    logger = logging.getLogger('default')
+    required_only = {
+        'sqs_session': sqs_session,
+        'queue_name': sqs_queue_name,
+        'MessageProcessor': BulkMsgProcessor,
+        'logger': logger,
+        'statsd': statsd,
+        'worker_limit': 1,
+        'wait_time': 20,
+        'max_number_of_messages': 4,
+        'bulk_mode': True
+    }
+
+    c = crew.Crew(**required_only)
+    # When you really want to be sure about what code you are hitting
+    # assert(aws_adapter_for_testing.using_real_aws == False)
+    c.start()
+    time.sleep(15)
+    try:
+        assert(aws_adapter_for_testing.receive_count >= 7)
+        time.sleep(5)
+        assert(aws_adapter_for_testing.delete_count == 4)
+    except:
+        aws_adapter_for_testing.reset()
+        c.stop()
+        raise
+    else:
+        aws_adapter_for_testing.reset()
+        c.stop()
 
 
 # TODO: this test needs an sqs queue to work

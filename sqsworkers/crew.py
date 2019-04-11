@@ -161,13 +161,48 @@ class Worker(CrewMember):
             'connected to sqs, approx. %s msgs on queue' %
             self.queue.attributes['ApproximateNumberOfMessages']
         )
-        self.poll_queue()
+        if self.bulk_mode:
+            self.bulk_poll_queue()
+        else:
+            self.poll_queue()
 
     def poll_queue(self):
+        while self.employed:
+            messages = self.queue.receive_messages(
+                AttributeNames=['All'],
+                MessageAttributeNames=['All'],
+                MaxNumberOfMessages=self.max_number_of_messages,
+                WaitTimeSeconds=self.wait_time)
+            if len(messages) > 0:
+                for message in messages:
+                    try:
+                        self.logger.info('processing %s messages %s' % (len(messages), messages))
+                        processor = self.crew.MessageProcessor(message)
+                        self.crew.statsd.increment('process.record.start', 1, tags=[])
+                        processed = processor.start()
+                        if processed:
+                            deleted = self.queue.delete_messages(
+                                Entries=[{
+                                    'Id': message.message_id,
+                                    'ReceiptHandle': message.receipt_handle
+                                }]
+                            )
+                            self.crew.statsd.increment('process.record.success', 1, tags=[])
+                            self.logger.info('%s messages processed successfully and deleted %s' % (len(messages), deleted))
+                        else:
+                            self.crew.statsd.increment('process.record.failure', 1, tags=[])
+                    except Exception as e:
+                        # select which exception handler to call based on the argument passed
+                        getattr(self, self.exception_handler_function)(e, message)
+                        # continue with the next message and do not delete
+                        pass
 
+    def bulk_poll_queue(self):
         def delete_from_sqs(entries):
             try:
-                delete_statuses = self.queue.delete_messages(entries)
+                # delete_command = { 'Entries': entries }
+                delete_statuses = self.queue.delete_messages(
+                        Entries=entries)
                 num_deleted = len(delete_statuses['Successful']) if 'Successful' in delete_statuses else 0
                 self.crew.statsd.increment('process.record.success', num_deleted, tags=[])
                 num_not_deleted = len(delete_statuses['Failed']) if 'Failed' in delete_statuses else 0
@@ -176,12 +211,10 @@ class Worker(CrewMember):
                                       .format(num_not_deleted, len(entries)))
                     for status in delete_statuses['Failed']:
                         self.crew.statsd.increment('sqs.delete.failure', 1, tags=[])
-                        try:
-                            self.logger.error('id: {}, fault: {}, code: {}, message: {}'.format(status['id'],
-                                              status['SenderFault'], status['Code'], status['Message'])) 
-                        except KeyError:
-                            pass
+                        self.logger.error('delete fail for {}'.format(status))
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 # select which exception handler to call based on the argument passed
                 getattr(self, self.exception_handler_function)(e, message)
                 # continue with the next message and do not delete
@@ -191,6 +224,7 @@ class Worker(CrewMember):
             entries=[]
             for processed, message in zip(processed_list, messages_list):
                 if processed is None:
+                    self.logger.debug('Ignoring message {}'.format(message))
                     continue  # Done to accommodate message processor that returns no status
                               # and avoid falsely negative statsd
                 if processed:
@@ -198,7 +232,7 @@ class Worker(CrewMember):
                         'Id': message.message_id,
                         'ReceiptHandle': message.receipt_handle
                     })
-                    if not self.bulk_mode or len(entries) > 9:
+                    if len(entries) > 9:
                         delete_from_sqs(entries)
                         entries.clear()
                 else:
@@ -214,34 +248,19 @@ class Worker(CrewMember):
                 MaxNumberOfMessages=self.max_number_of_messages,
                 WaitTimeSeconds=self.wait_time)
             if len(messages) > 0:
-                if self.bulk_mode:
-                    try:
-                        self.logger.info('processing %s messages %s' % (len(messages), messages))
-                        processor = self.crew.MessageProcessor(messages)
-                    except Exception as e:
-                        # select which exception handler to call based on the argument passed
-                        for message in messages:
-                            getattr(self, self.exception_handler_function)(e, message)
-                        # continue with the next message and do not delete
-                        pass
-                    self.crew.statsd.increment('process.record.start', len(messages), tags=[])
-                    processed = processor.start()
-                    if processed is not None and isinstance(processed, list):
-                        clear_processed(processed, messages)
-                else:
+                try:
+                    self.logger.info('processing %s messages %s' % (len(messages), messages))
+                    processor = self.crew.MessageProcessor(messages)
+                except Exception as e:
+                    # select which exception handler to call based on the argument passed
                     for message in messages:
-                        try:
-                            self.logger.info('processing %s messages %s' % (len(messages), messages))
-                            processor = self.crew.MessageProcessor(message)
-                            self.crew.statsd.increment('process.record.start', 1, tags=[])
-                            processed = processor.start()
-                            clear_processed([processed], [message])
-                        except Exception as e:
-                            # select which exception handler to call based on the argument passed
-                            getattr(self, self.exception_handler_function)(e, message)
-                            # continue with the next message and do not delete
-                            pass
-
+                        getattr(self, self.exception_handler_function)(e, message)
+                    # continue with the next message and do not delete
+                    pass
+                self.crew.statsd.increment('process.record.start', len(messages), tags=[])
+                processed = processor.start()
+                if processed is not None and isinstance(processed, list):
+                    clear_processed(processed, messages)
 
     # custom exception handler function
     def custom_exception_handler(self, e, message):
@@ -254,12 +273,12 @@ class Worker(CrewMember):
             'streamhub_event_type': failed_streamhub_event_type,
             'streamhub_event_schema': failed_streamhub_event_schema
         }
-        self.logger.error('There was an error processing the message %s' % e)
+        self.logger.error('There was an error processing the message {}'.format(e))
         self.logger.error(extra_info)
 
     # default exception handler function - this is called by default if no exception handler is specified while instantiating the crew
     def default_exception_handler(self, e, message):
-        self.logger.error('There was an error processing the message %s' % e)
+        self.logger.error('There was an error processing the message {}'.format(e))
 
 class Supervisor(CrewMember):
     def __init__(self, crew):
