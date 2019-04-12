@@ -4,6 +4,7 @@ import mock
 import os
 import pytest
 import sys
+import traceback
 
 from helpers import aws_adapter_for_testing
 from helpers import BulkMsgProcessor
@@ -95,9 +96,11 @@ def test_bulk_start_10_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *
         assert(aws_adapter_for_testing.delete_count == aws_adapter_for_testing.receive_count)
         assert(aws_adapter_for_testing.delete_count == 10)
     except:
+        traceback.print_exc()
         c.stop()
         raise
     else:
+        traceback.print_exc()
         c.stop()
 
 @mock_sqs_session(n_msgs=15)
@@ -125,6 +128,7 @@ def test_bulk_start_15_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *
         assert(aws_adapter_for_testing.delete_count == aws_adapter_for_testing.receive_count)
         assert(aws_adapter_for_testing.delete_count == 15)
     except:
+        traceback.print_exc()
         c.stop()
         raise
     else:
@@ -156,6 +160,7 @@ def test_bulk_start_proc_fails(sqs_session=None, sqs_queue_name=None, mock_=None
         time.sleep(5)
         assert(aws_adapter_for_testing.delete_count == 4)
     except:
+        traceback.print_exc()
         c.stop()
         raise
     else:

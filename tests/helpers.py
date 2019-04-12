@@ -3,16 +3,13 @@ import decorator
 import logging
 import os
 import sys
+from types import SimpleNamespace
 from functools import wraps
-
-class ObjectGen:
-    def __init__(self, v_dict={}):
-        for k,v in v_dict.items():
-            setattr(self,k,v)
 
 class MockAWSAccount():
     def __init__(self, **kwargs):
-        self.logger = logging.LoggerAdapter(logging.getLogger('default'), extra={'module': 'AWS API Adaptor'})
+        self.logger = logging.LoggerAdapter(logging.getLogger('default'),
+                                            extra={'helpers_py': 'AWS API Adaptor'})
         self.using_real_aws = False
         self.delete_count = 0
         self.receive_count = 0
@@ -34,12 +31,12 @@ class MockAWSAccount():
         }
 
         # determine if real aws is available
-        aws_secret_access_key = os.environ['AWS_SECRET_ACCESS_KEY'] if 'AWS_SECRET_ACCESS_KEY' in os.environ else None
-        aws_security_token = os.environ['AWS_SECURITY_TOKEN'] if 'AWS_SECURITY_TOKEN' in os.environ else None
-        aws_session_token = os.environ['AWS_SESSION_TOKEN'] if 'AWS_SESSION_TOKEN' in os.environ else None
-        aws_access_key_id = os.environ['AWS_ACCESS_KEY_ID'] if 'AWS_ACCESS_KEY_ID' in os.environ else None
-        sqs_queue_name = os.environ['AWS_TEST_QUEUE'] if 'AWS_TEST_QUEUE' in os.environ else None
-        sqs_region = os.environ['SQS_REGION'] if 'SQS_REGION' in os.environ else None
+        aws_secret_access_key = os.environ.get('AWS_SECRET_ACCESS_KEY', None)
+        aws_security_token = os.environ.get('AWS_SECURITY_TOKEN', None)
+        aws_session_token = os.environ.get('AWS_SESSION_TOKEN', None)
+        aws_access_key_id = os.environ.get('AWS_ACCESS_KEY_ID', None)
+        sqs_queue_name = os.environ.get('AWS_TEST_QUEUE', None)
+        sqs_region = os.environ.get('SQS_REGION', None)
 
         if all([aws_secret_access_key, aws_security_token, aws_session_token,
                 aws_access_key_id, sqs_queue_name, sqs_region]):
@@ -47,7 +44,7 @@ class MockAWSAccount():
             self.sqs_session = boto3.session.Session(region_name=sqs_region)
             self.sqs_queue_res = self.sqs_session.resource('sqs')
             self.sqs_queue = self.sqs_queue_res.get_queue_by_name(QueueName=sqs_queue_name)
-            self.test_message='''{
+            self.test_message = '''{
                 "eventId": "blah123",
                 "payload": {
                     "env": "dev",
@@ -68,6 +65,8 @@ class MockAWSAccount():
         self.attributes = {
             'ApproximateNumberOfMessages': 10
         }
+        #global aws_adapter_for_testing
+        #aws_adapter_for_testing = MockAWSAccount()
         if self.using_real_aws:
             while True:
                 messages = self.sqs_queue.receive_messages(
@@ -77,7 +76,7 @@ class MockAWSAccount():
                     WaitTimeSeconds=2)
                 if len(messages) <= 0:
                     break
-                entries=[]
+                entries = []
                 n = 0
                 self.logger.info('Received {} messages'.format(len(messages)))
                 for message in messages:
@@ -90,7 +89,7 @@ class MockAWSAccount():
                         self.logger.info('batch removing {} messages'.format(n))
                         self.sqs_queue.delete_messages(Entries=entries)
                         entries.clear()
-                        n=0
+                        n = 0
                 if len(entries) > 0:
                     self.logger.info('batch removing remaining {} messages'.format(n))
                     self.sqs_queue.delete_messages(Entries=entries)
@@ -98,7 +97,7 @@ class MockAWSAccount():
 
     def delete_messages(self, **kwargs):
         import traceback
-        self.logger.debug('in fake delete_messages\n')
+        self.logger.error('in fake delete_messages\n')
         if self.using_real_aws:
             try:
                 self.logger.debug('\n\ndlt -sendval: {}\n\n'.format(kwargs))
@@ -109,26 +108,32 @@ class MockAWSAccount():
                 raise
             self.logger.debug('\n\ndlt -retval: {}\n\n'.format(retval))
         else:
+            received_for_delete = len(kwargs['Entries'])
             retval = {'Successful' : ['msg_id_%02d' % i
-                                      for i in range(self.n_msgs)],
+                                      for i in range(received_for_delete)],
                       'Failed' : []}
-            self.delete_count += self.n_msgs
+            self.delete_count += received_for_delete
+            self.n_msgs = max(self.n_msgs - received_for_delete, 0)
         return retval
 
     def receive_messages(self, **kwargs):
 
-        self.logger.debug('n_msgs = %d\n' % self.n_msgs)
+        self.logger.error('helpers:recv_msgs n_msgs = %d\n' % self.n_msgs)
         if self.using_real_aws:
+            self.logger.error('helpers:recv_msgs using_real_aws')
             retval = self.sqs_queue.receive_messages(**kwargs)
             n_procs = len(retval)
             BulkMsgProcessor.send_count = n_procs
             self.logger.debug('received %d messages from aws queue\n' % len(retval))
             self.receive_count += n_procs
         else:
-            retval = [ObjectGen({'message_id': 'msg_id_%02d' % i,
-                                 'receipt_handle': 'rcpt_handle_%03d' % i})
-                                 for i in range(self.n_msgs)]
-            self.receive_count += n_msgs
+            self.logger.error('helpers:recv_msgs NOT using_real_aws')
+            batch_size = min(self.n_msgs, 10)
+            retval = [SimpleNamespace(message_id='msg_id_%02d' % i,
+                                      receipt_handle='rcpt_handle_%03d' % i)
+                      for i in range(batch_size)]
+            self.receive_count += batch_size
+            BulkMsgProcessor.send_count = batch_size
         return retval
 
     def resource(self, some_arg, *args, **kwargs):
@@ -153,7 +158,8 @@ class BulkMsgProcessor:
     send_count = 0
     to_send = None
     def __init__(self, *args, **kwargs):
-        self.logger = logging.LoggerAdapter(logging.getLogger('default'), extra={'module': 'fake MulkMsgProcessor'})
+        self.logger = logging.LoggerAdapter(logging.getLogger('default'),
+                                            extra={'helper_py': 'fake MulkMsgProcessor'})
         self.logger.info('bulk msg processor instantiated')
 
     def start(self):
@@ -165,11 +171,12 @@ class BulkMsgProcessor:
         if BulkMsgProcessor.to_send is None:
             BulkMsgProcessor.to_send = [True] * (BulkMsgProcessor.n_proc_results - BulkMsgProcessor.n_failed_processing) + \
                                        [False] * BulkMsgProcessor.n_failed_processing
+            self.logger.error('bmp will send {}'.format(BulkMsgProcessor.to_send))
         sending = BulkMsgProcessor.to_send[:BulkMsgProcessor.send_count]
         BulkMsgProcessor.to_send = BulkMsgProcessor.to_send[BulkMsgProcessor.send_count:]
         return sending
 
-aws_adapter_for_testing=MockAWSAccount()
+aws_adapter_for_testing = MockAWSAccount()
 
 def mock_sqs_session(**kwargs):
     if 'n_msgs' in kwargs:
@@ -188,10 +195,11 @@ def mock_sqs_session(**kwargs):
         def client_wrapper(func, *args, **kwargs):
             sqs_queue_name = 'dummy'
             aws_adapter_for_testing.reset()
-            aws_adapter_for_testing.insert_messages(n_msgs)
-            aws_adapter_for_testing.n_msgs=n_msgs
-            BulkMsgProcessor.n_proc_results=n_msgs
-            BulkMsgProcessor.n_failed_processing=n_failed_processing
+            if aws_adapter_for_testing.using_real_aws:
+                aws_adapter_for_testing.insert_messages(n_msgs)
+            aws_adapter_for_testing.n_msgs = n_msgs
+            BulkMsgProcessor.n_proc_results = n_msgs
+            BulkMsgProcessor.n_failed_processing = n_failed_processing
             return func(aws_adapter_for_testing, sqs_queue_name, *args, **kwargs)
         return decorator.decorator(client_wrapper, client_func)
     return f
