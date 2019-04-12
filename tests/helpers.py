@@ -97,7 +97,7 @@ class MockAWSAccount():
 
     def delete_messages(self, **kwargs):
         import traceback
-        self.logger.error('in fake delete_messages\n')
+        self.logger.debug('in fake delete_messages\n')
         if self.using_real_aws:
             try:
                 self.logger.debug('\n\ndlt -sendval: {}\n\n'.format(kwargs))
@@ -118,16 +118,16 @@ class MockAWSAccount():
 
     def receive_messages(self, **kwargs):
 
-        self.logger.error('helpers:recv_msgs n_msgs = %d\n' % self.n_msgs)
+        self.logger.debug('helpers:recv_msgs n_msgs = %d\n' % self.n_msgs)
         if self.using_real_aws:
-            self.logger.error('helpers:recv_msgs using_real_aws')
+            self.logger.debug('helpers:recv_msgs using_real_aws')
             retval = self.sqs_queue.receive_messages(**kwargs)
             n_procs = len(retval)
             BulkMsgProcessor.send_count = n_procs
             self.logger.debug('received %d messages from aws queue\n' % len(retval))
             self.receive_count += n_procs
         else:
-            self.logger.error('helpers:recv_msgs NOT using_real_aws')
+            self.logger.debug('helpers:recv_msgs NOT using_real_aws')
             batch_size = min(self.n_msgs, 10)
             retval = [SimpleNamespace(message_id='msg_id_%02d' % i,
                                       receipt_handle='rcpt_handle_%03d' % i)
@@ -171,7 +171,7 @@ class BulkMsgProcessor:
         if BulkMsgProcessor.to_send is None:
             BulkMsgProcessor.to_send = [True] * (BulkMsgProcessor.n_proc_results - BulkMsgProcessor.n_failed_processing) + \
                                        [False] * BulkMsgProcessor.n_failed_processing
-            self.logger.error('bmp will send {}'.format(BulkMsgProcessor.to_send))
+            self.logger.debug('bmp will send {}'.format(BulkMsgProcessor.to_send))
         sending = BulkMsgProcessor.to_send[:BulkMsgProcessor.send_count]
         BulkMsgProcessor.to_send = BulkMsgProcessor.to_send[BulkMsgProcessor.send_count:]
         return sending
