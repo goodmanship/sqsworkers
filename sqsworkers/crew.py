@@ -273,12 +273,12 @@ class Worker(CrewMember):
             'streamhub_event_type': failed_streamhub_event_type,
             'streamhub_event_schema': failed_streamhub_event_schema
         }
-        self.logger.error('There was an error processing the message {}'.format(e))
+        self.logger.error('There was an error processing the message %s' % e)
         self.logger.error(extra_info)
 
     # default exception handler function - this is called by default if no exception handler is specified while instantiating the crew
     def default_exception_handler(self, e, message):
-        self.logger.error('There was an error processing the message {}'.format(e))
+        self.logger.error('There was an error processing the message %s' % e)
 
 class Supervisor(CrewMember):
     def __init__(self, crew):
