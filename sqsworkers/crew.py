@@ -161,12 +161,9 @@ class Worker(CrewMember):
             'connected to sqs, approx. %s msgs on queue' %
             self.queue.attributes['ApproximateNumberOfMessages']
         )
-        if self.bulk_mode:
-            self.bulk_poll_queue()
-        else:
-            self.poll_queue()
+        self.poll_queue()
 
-    def poll_queue(self):
+    def _poll_queue(self):
         while self.employed:
             messages = self.queue.receive_messages(
                 AttributeNames=['All'],
@@ -188,7 +185,8 @@ class Worker(CrewMember):
                                 }]
                             )
                             self.crew.statsd.increment('process.record.success', 1, tags=[])
-                            self.logger.info('%s messages processed successfully and deleted %s' % (len(messages), deleted))
+                            self.logger.info('%s messages processed successfully and deleted %s' %
+                                             (len(messages), deleted))
                         else:
                             self.crew.statsd.increment('process.record.failure', 1, tags=[])
                     except Exception as e:
@@ -197,12 +195,11 @@ class Worker(CrewMember):
                         # continue with the next message and do not delete
                         pass
 
-    def bulk_poll_queue(self):
+    def _bulk_poll_queue(self):
         def delete_from_sqs(entries):
             try:
                 # delete_command = { 'Entries': entries }
-                delete_statuses = self.queue.delete_messages(
-                        Entries=entries)
+                delete_statuses = self.queue.delete_messages(Entries=entries)
                 num_deleted = len(delete_statuses['Successful']) if 'Successful' in delete_statuses else 0
                 self.crew.statsd.increment('process.record.success', num_deleted, tags=[])
                 num_not_deleted = len(delete_statuses['Failed']) if 'Failed' in delete_statuses else 0
@@ -221,7 +218,7 @@ class Worker(CrewMember):
                 pass
 
         def clear_processed(processed_list, messages_list):
-            entries=[]
+            entries = []
             for processed, message in zip(processed_list, messages_list):
                 if processed is None:
                     self.logger.debug('Ignoring message {}'.format(message))
@@ -261,6 +258,12 @@ class Worker(CrewMember):
                 processed = processor.start()
                 if processed is not None and isinstance(processed, list):
                     clear_processed(processed, messages)
+
+    def poll_queue(self):
+        if self.bulk_mode:
+            self._bulk_poll_queue()
+        else:
+            self._poll_queue()
 
     # custom exception handler function
     def custom_exception_handler(self, e, message):
