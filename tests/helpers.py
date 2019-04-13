@@ -32,13 +32,12 @@ class MockAWSAccount():
 
         # determine if real aws is available
         aws_secret_access_key = os.environ.get('AWS_SECRET_ACCESS_KEY', None)
-        aws_security_token = os.environ.get('AWS_SECURITY_TOKEN', None)
         aws_session_token = os.environ.get('AWS_SESSION_TOKEN', None)
         aws_access_key_id = os.environ.get('AWS_ACCESS_KEY_ID', None)
         sqs_queue_name = os.environ.get('AWS_TEST_QUEUE', None)
         sqs_region = os.environ.get('SQS_REGION', None)
 
-        if all([aws_secret_access_key, aws_security_token, aws_session_token,
+        if all([aws_secret_access_key, aws_session_token,
                 aws_access_key_id, sqs_queue_name, sqs_region]):
             self.using_real_aws = True
             self.sqs_session = boto3.session.Session(region_name=sqs_region)
@@ -65,8 +64,6 @@ class MockAWSAccount():
         self.attributes = {
             'ApproximateNumberOfMessages': 10
         }
-        #global aws_adapter_for_testing
-        #aws_adapter_for_testing = MockAWSAccount()
         if self.using_real_aws:
             while True:
                 messages = self.sqs_queue.receive_messages(
@@ -96,7 +93,6 @@ class MockAWSAccount():
                     entries.clear()
 
     def delete_messages(self, **kwargs):
-        import traceback
         self.logger.debug('in fake delete_messages\n')
         if self.using_real_aws:
             try:
@@ -104,7 +100,7 @@ class MockAWSAccount():
                 retval = self.sqs_queue.delete_messages(**kwargs)
                 self.delete_count += len(retval['Successful'])
             except:
-                traceback.print_exc()
+                logging.exception('exception calling self.sqs_queue.delete_messages')
                 raise
             self.logger.debug('\n\ndlt -retval: {}\n\n'.format(retval))
         else:
@@ -176,8 +172,6 @@ class BulkMsgProcessor:
         BulkMsgProcessor.to_send = BulkMsgProcessor.to_send[BulkMsgProcessor.send_count:]
         return sending
 
-aws_adapter_for_testing = MockAWSAccount()
-
 def mock_sqs_session(**kwargs):
     if 'n_msgs' in kwargs:
         n_msgs = kwargs['n_msgs']
@@ -194,12 +188,14 @@ def mock_sqs_session(**kwargs):
         @wraps(client_func)
         def client_wrapper(func, *args, **kwargs):
             sqs_queue_name = 'dummy'
-            aws_adapter_for_testing.reset()
+            aws_adapter_for_testing = MockAWSAccount()
             if aws_adapter_for_testing.using_real_aws:
                 aws_adapter_for_testing.insert_messages(n_msgs)
             aws_adapter_for_testing.n_msgs = n_msgs
             BulkMsgProcessor.n_proc_results = n_msgs
             BulkMsgProcessor.n_failed_processing = n_failed_processing
+            BulkMsgProcessor.send_count = 0
+            BulkMsgProcessor.to_send = None
             return func(aws_adapter_for_testing, sqs_queue_name, *args, **kwargs)
         return decorator.decorator(client_wrapper, client_func)
     return f

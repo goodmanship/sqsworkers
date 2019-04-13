@@ -61,6 +61,8 @@ Tests
 =====
 
 Make sure tests pass: ``pytest tests/test_crew.py``
+Note: Because of timing/queue cleanup issues (relating to the working of SQS), the tests
+involving use of real aws may not succeed consistently.
 
 Contributors
 ============

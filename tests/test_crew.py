@@ -3,9 +3,8 @@ import logging
 import os
 import pytest
 import sys
-import traceback
 
-from helpers import aws_adapter_for_testing
+ # from helpers import aws_adapter_for_testing
 from helpers import BulkMsgProcessor
 from helpers import mock_sqs_session
 from helpers import MsgProcessor
@@ -66,7 +65,7 @@ def test_crew_without_sqs():
         'statsd': statsd
     }
 
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         crew.Crew(**no_sqs)
 
 @mock_sqs_session(n_msgs=10)
@@ -87,19 +86,19 @@ def test_bulk_start_10_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *
 
     c = crew.Crew(**required_only)
     # When you really want to be sure about what code you are hitting
-    # assert(aws_adapter_for_testing.using_real_aws == False)
+    # assert(sqs_session.using_real_aws == False)
     c.start()
     time.sleep(15)
     try:
-        assert(aws_adapter_for_testing.delete_count == aws_adapter_for_testing.receive_count)
-        assert(aws_adapter_for_testing.delete_count == 10)
+        assert(sqs_session.delete_count == sqs_session.receive_count)
+        assert(sqs_session.delete_count == 10)
     except:
-        traceback.print_exc()
+        logging.exception('Exception from test_bulk_start_10_msgs')
         c.stop()
         raise
     else:
-        traceback.print_exc()
         c.stop()
+    time.sleep(10)
 
 @mock_sqs_session(n_msgs=15)
 def test_bulk_start_15_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
@@ -119,18 +118,19 @@ def test_bulk_start_15_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *
 
     c = crew.Crew(**required_only)
     # When you really want to be sure about what code you are hitting
-    # assert(aws_adapter_for_testing.using_real_aws == False)
+    # assert(sqs_session.using_real_aws == False)
     c.start()
     time.sleep(25)
     try:
-        assert(aws_adapter_for_testing.delete_count == aws_adapter_for_testing.receive_count)
-        assert(aws_adapter_for_testing.delete_count == 15)
+        assert(sqs_session.delete_count == sqs_session.receive_count)
+        assert(sqs_session.delete_count == 15)
     except:
-        traceback.print_exc()
+        logging.exception('Exception from test_bulk_start_15_msgs')
         c.stop()
         raise
     else:
         c.stop()
+    time.sleep(10)
 
 @mock_sqs_session(n_msgs=7, n_failed_processing=3)
 def test_bulk_start_proc_fails(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
@@ -150,15 +150,15 @@ def test_bulk_start_proc_fails(sqs_session=None, sqs_queue_name=None, mock_=None
 
     c = crew.Crew(**required_only)
     # When you really want to be sure about what code you are hitting
-    # assert(aws_adapter_for_testing.using_real_aws == False)
+    # assert(sqs_session.using_real_aws == False)
     c.start()
     time.sleep(15)
     try:
-        assert(aws_adapter_for_testing.receive_count >= 7)
+        assert(sqs_session.receive_count >= 7)
         time.sleep(5)
-        assert(aws_adapter_for_testing.delete_count == 4)
+        assert(sqs_session.delete_count == 4)
     except:
-        traceback.print_exc()
+        logging.exception('Exception from test_bulk_start_proc_fails')
         c.stop()
         raise
     else:
