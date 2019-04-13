@@ -76,7 +76,7 @@ class Crew():
                                           'default_exception_handler'
 
         if not ((self.sqs_session and self.queue_name) or self.sqs_resource):
-            raise TypeError('Required arguments not provided. Either provide (sqs_session + queue_name) or sqs_resource.')
+            raise ValueError('Required arguments not provided. Either provide (sqs_session + queue_name) or sqs_resource.')
 
     def make_name(self, name, url):
         try:
@@ -210,8 +210,6 @@ class Worker(CrewMember):
                         self.crew.statsd.increment('sqs.delete.failure', 1, tags=[])
                         self.logger.error('delete fail for {}'.format(status))
             except Exception as e:
-                import traceback
-                traceback.print_exc()
                 # select which exception handler to call based on the argument passed
                 getattr(self, self.exception_handler_function)(e, message)
                 # continue with the next message and do not delete
@@ -248,14 +246,14 @@ class Worker(CrewMember):
                 try:
                     self.logger.info('processing %s messages %s' % (len(messages), messages))
                     processor = self.crew.MessageProcessor(messages)
+                    self.crew.statsd.increment('process.record.start', len(messages), tags=[])
+                    processed = processor.start()
                 except Exception as e:
                     # select which exception handler to call based on the argument passed
                     for message in messages:
                         getattr(self, self.exception_handler_function)(e, message)
                     # continue with the next message and do not delete
                     pass
-                self.crew.statsd.increment('process.record.start', len(messages), tags=[])
-                processed = processor.start()
                 if processed is not None and isinstance(processed, list):
                     clear_processed(processed, messages)
 

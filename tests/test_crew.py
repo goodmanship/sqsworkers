@@ -1,6 +1,5 @@
 from datadog import statsd
 import logging
-import mock
 import os
 import pytest
 import sys
@@ -8,7 +7,6 @@ import traceback
 
 from helpers import aws_adapter_for_testing
 from helpers import BulkMsgProcessor
-from helpers import MockAWSAccount
 from helpers import mock_sqs_session
 from helpers import MsgProcessor
 
