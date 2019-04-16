@@ -3,8 +3,8 @@ import logging
 import os
 import pytest
 import sys
+import time
 
- # from helpers import aws_adapter_for_testing
 from helpers import BulkMsgProcessor
 from helpers import mock_sqs_session
 from helpers import MsgProcessor
@@ -65,12 +65,11 @@ def test_crew_without_sqs():
         'statsd': statsd
     }
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         crew.Crew(**no_sqs)
 
 @mock_sqs_session(n_msgs=10)
 def test_bulk_start_10_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
-    import time
     logger = logging.getLogger('default')
     required_only = {
         'sqs_session': sqs_session,
@@ -86,23 +85,21 @@ def test_bulk_start_10_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *
 
     c = crew.Crew(**required_only)
     # When you really want to be sure about what code you are hitting
-    # assert(sqs_session.using_real_aws == False)
+    # assert sqs_session.using_real_aws == False
     c.start()
-    time.sleep(15)
+    time.sleep(30)
     try:
-        assert(sqs_session.delete_count == sqs_session.receive_count)
-        assert(sqs_session.delete_count == 10)
+        assert sqs_session.delete_count == sqs_session.receive_count
+        assert sqs_session.delete_count == 10
     except:
         logging.exception('Exception from test_bulk_start_10_msgs')
         c.stop()
         raise
     else:
         c.stop()
-    time.sleep(10)
 
 @mock_sqs_session(n_msgs=15)
 def test_bulk_start_15_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
-    import time
     logger = logging.getLogger('default')
     required_only = {
         'sqs_session': sqs_session,
@@ -118,23 +115,21 @@ def test_bulk_start_15_msgs(sqs_session=None, sqs_queue_name=None, mock_=None, *
 
     c = crew.Crew(**required_only)
     # When you really want to be sure about what code you are hitting
-    # assert(sqs_session.using_real_aws == False)
+    # assert sqs_session.using_real_aws == False
     c.start()
-    time.sleep(25)
+    time.sleep(30)
     try:
-        assert(sqs_session.delete_count == sqs_session.receive_count)
-        assert(sqs_session.delete_count == 15)
+        assert sqs_session.delete_count == sqs_session.receive_count
+        assert sqs_session.delete_count == 15
     except:
         logging.exception('Exception from test_bulk_start_15_msgs')
         c.stop()
         raise
     else:
         c.stop()
-    time.sleep(10)
 
 @mock_sqs_session(n_msgs=7, n_failed_processing=3)
 def test_bulk_start_proc_fails(sqs_session=None, sqs_queue_name=None, mock_=None, *args, **kwargs):
-    import time
     logger = logging.getLogger('default')
     required_only = {
         'sqs_session': sqs_session,
@@ -143,20 +138,19 @@ def test_bulk_start_proc_fails(sqs_session=None, sqs_queue_name=None, mock_=None
         'logger': logger,
         'statsd': statsd,
         'worker_limit': 1,
-        'wait_time': 20,
+        'wait_time': 15,
         'max_number_of_messages': 4,
         'bulk_mode': True
     }
 
     c = crew.Crew(**required_only)
     # When you really want to be sure about what code you are hitting
-    # assert(sqs_session.using_real_aws == False)
+    # assert sqs_session.using_real_aws == False
     c.start()
-    time.sleep(15)
+    time.sleep(32)
     try:
-        assert(sqs_session.receive_count >= 7)
-        time.sleep(5)
-        assert(sqs_session.delete_count == 4)
+        assert sqs_session.receive_count >= 7
+        assert sqs_session.delete_count == 4
     except:
         logging.exception('Exception from test_bulk_start_proc_fails')
         c.stop()

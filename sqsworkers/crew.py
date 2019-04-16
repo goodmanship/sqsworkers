@@ -76,7 +76,7 @@ class Crew():
                                           'default_exception_handler'
 
         if not ((self.sqs_session and self.queue_name) or self.sqs_resource):
-            raise ValueError('Required arguments not provided. Either provide (sqs_session + queue_name) or sqs_resource.')
+            raise TypeError('Required arguments not provided. Either provide (sqs_session + queue_name) or sqs_resource.')
 
     def make_name(self, name, url):
         try:
@@ -198,7 +198,6 @@ class Worker(CrewMember):
     def _bulk_poll_queue(self):
         def delete_from_sqs(entries):
             try:
-                # delete_command = { 'Entries': entries }
                 delete_statuses = self.queue.delete_messages(Entries=entries)
                 num_deleted = len(delete_statuses['Successful']) if 'Successful' in delete_statuses else 0
                 self.crew.statsd.increment('process.record.success', num_deleted, tags=[])
@@ -208,6 +207,7 @@ class Worker(CrewMember):
                                       .format(num_not_deleted, len(entries)))
                     for status in delete_statuses['Failed']:
                         self.crew.statsd.increment('sqs.delete.failure', 1, tags=[])
+                        self.crew.statsd.increment('process.record.failure', 1, tags=[])
                         self.logger.error('delete fail for {}'.format(status))
             except Exception as e:
                 # select which exception handler to call based on the argument passed
@@ -256,6 +256,8 @@ class Worker(CrewMember):
                     pass
                 if processed is not None and isinstance(processed, list):
                     clear_processed(processed, messages)
+                else:
+                    self.logger.info('No actionable status received from Message Processor. Not removing messages from queue')
 
     def poll_queue(self):
         if self.bulk_mode:

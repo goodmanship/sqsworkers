@@ -70,7 +70,7 @@ class MockAWSAccount():
                     AttributeNames=['All'],
                     MessageAttributeNames=['All'],
                     MaxNumberOfMessages=10,
-                    WaitTimeSeconds=2)
+                    WaitTimeSeconds=10)
                 if len(messages) <= 0:
                     break
                 entries = []

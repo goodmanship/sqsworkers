@@ -62,7 +62,9 @@ Tests
 
 Make sure tests pass: ``pytest tests/test_crew.py``
 Note: Because of timing/queue cleanup issues (relating to the working of SQS), the tests
-involving use of real aws may not succeed consistently.
+involving use of real aws may not succeed consistently. Increasing the wait time before
+the asserts will improve the chances of having the tests pass. Another way is to specify
+a quicker visibility timeout for the messages in the queue
 
 Contributors
 ============
