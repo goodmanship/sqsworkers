@@ -19,7 +19,7 @@ def log_uncaught_exception(e, logger=None, context=None):
     context['exception_value'] = e
     context['exception_traceback'] = ''.join(traceback.format_tb(e.__traceback__))
 
-    logger.error('Uncaught Exception: %s' % (e), extra={'extra': context})
+    logger.error('Uncaught Exception: %r' % (e), extra={'extra': context})
 
 
 # dummy class in case statsd obj is not provided
