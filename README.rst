@@ -11,6 +11,7 @@ Versions
 ========
 
 ::
+    0.1.13 - support bulk message processor
     0.1.12 - adding exception handler
     0.1.11 - customize queue polling
     0.1.10 - increase to max wait time for polling
@@ -60,6 +61,10 @@ Tests
 =====
 
 Make sure tests pass: ``pytest tests/test_crew.py``
+Note: Because of timing/queue cleanup issues (relating to the working of SQS), the tests
+involving use of real aws may not succeed consistently. Increasing the wait time before
+the asserts will improve the chances of having the tests pass. Another way is to specify
+a quicker visibility timeout for the messages in the queue
 
 Contributors
 ============
