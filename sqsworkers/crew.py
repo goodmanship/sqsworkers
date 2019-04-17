@@ -138,6 +138,7 @@ class Worker(CrewMember):
         self.logger = logging.LoggerAdapter(self.crew.logger, extra={'extra': {'worker_name': self.worker_name, 'crew.name': self.crew.name}})
         self.logger = self.crew.logger
         self.exception_handler_function = self.crew.exception_handler_function
+        self.logging.info('Completed Worker Initialization')
         CrewMember.__init__(self)
 
     def _wrap_run(self):
@@ -237,6 +238,7 @@ class Worker(CrewMember):
                 entries.clear()
 
         while self.employed:
+            self.logging.info('Reached ln 240 of crew.py')
             messages = self.queue.receive_messages(
                 AttributeNames=['All'],
                 MessageAttributeNames=['All'],
