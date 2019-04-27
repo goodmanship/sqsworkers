@@ -19,7 +19,7 @@ def log_uncaught_exception(e, logger=None, context=None):
     context['exception_value'] = e
     context['exception_traceback'] = ''.join(traceback.format_tb(e.__traceback__))
 
-    logger.error('Uncaught Exception: %r' % (e), extra={'extra': context})
+    logger.error('Uncaught Exception: %s' % (e), extra={'extra': context})
 
 
 # dummy class in case statsd obj is not provided
@@ -138,7 +138,6 @@ class Worker(CrewMember):
         self.logger = logging.LoggerAdapter(self.crew.logger, extra={'extra': {'worker_name': self.worker_name, 'crew.name': self.crew.name}})
         self.logger = self.crew.logger
         self.exception_handler_function = self.crew.exception_handler_function
-        self.logging.info('Completed Worker Initialization')
         CrewMember.__init__(self)
 
     def _wrap_run(self):
