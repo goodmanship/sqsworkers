@@ -254,10 +254,11 @@ class Worker(CrewMember):
                         getattr(self, self.exception_handler_function)(e, message)
                     # continue with the next message and do not delete
                     pass
-                if processed is not None and isinstance(processed, list):
-                    clear_processed(processed, messages)
                 else:
-                    self.logger.info('No actionable status received from Message Processor. Not removing messages from queue')
+                    if processed is not None and isinstance(processed, list):
+                        clear_processed(processed, messages)
+                    else:
+                        self.logger.info('No actionable status received from Message Processor. Not removing messages from queue')
 
     def poll_queue(self):
         if self.bulk_mode:
