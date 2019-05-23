@@ -242,13 +242,26 @@ class BulkCrew(Crew):
         self,
         minimum_messages: Optional[int] = 10,
         timeout: int = 30,
-        wait_time: int = 10,
         *args,
         **kwargs,
     ):
-        super().__init__(wait_time=wait_time, *args, **kwargs)
+        """
+
+        Args:
+            minimum_messages: The minimum number of messages we want to pass to the message processor
+            timeout: if we set minimum messages, this is how long we'll keep trying to poll on sqs to get
+                that number of messages
+        """
+        super().__init__(*args, **kwargs)
         self.minimum_messages = minimum_messages
         self.timeout = timeout
+
+        if minimum_messages and self.wait_time > self.timeout:
+            logging.warning(
+                f"the wait time ({self.wait_time}) is longer than the timeout ({self.timeout}) "
+                f"meaning sqs will be long-polled only once to attempt to get the minimum number "
+                f"of messages ({minimum_messages}"
+            )
 
     @_alert_sentry
     def start(self):
