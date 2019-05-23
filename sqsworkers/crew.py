@@ -206,8 +206,6 @@ class Crew(interfaces.CrewInterface):
         Clean up after the task and do any necessary logging.
         """
 
-        assert f.done()
-
         exception = f.exception()
 
         if exception is not None:
@@ -307,8 +305,6 @@ class BulkCrew(Crew):
 
     def _task_complete(self, f: futures.Future, messages):
         """Clean up after task and do any necessary logging."""
-
-        assert f.done()
 
         exception = f.exception()
 
