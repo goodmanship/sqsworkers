@@ -63,7 +63,7 @@ class Crew(interfaces.CrewInterface):
     This class polls on an sqs queue, delegating the work to a message processor that runs in a threadpool.
     """
 
-    def __new__(cls, worker_limit: Optional[int] = None, *args, **kwargs):
+    def __new__(cls, *args, worker_limit: Optional[int] = None, **kwargs):
         """
         Ensures we only create one threadpool executor per class.
         """
@@ -76,7 +76,7 @@ class Crew(interfaces.CrewInterface):
         if not hasattr(cls, "_count"):
             cls._count = it.count(1)
 
-        return super().__new__(cls, worker_limit=worker_limit, *args, **kwargs)
+        return super().__new__(cls)
 
     def __init__(
         self,
