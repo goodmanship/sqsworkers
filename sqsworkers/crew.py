@@ -97,6 +97,7 @@ class Crew(interfaces.CrewInterface):
         max_number_of_messages: int = 1,
         wait_time: int = 20,
         polling_interval: Union[int, float] = 1.5,
+        **kwargs,
     ):
         """
 
