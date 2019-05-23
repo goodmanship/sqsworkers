@@ -19,9 +19,7 @@ class CrewInterface:
 
 class StatsDInterface(metaclass=ABCMeta):
     """
-    Defines the interface for the statsd.
-
-    Implements default methods.
+    Defines the interface for the statsd client and implements default methods.
     """
 
     @abstractmethod
