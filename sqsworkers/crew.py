@@ -64,6 +64,7 @@ class Crew(interfaces.CrewInterface):
         workers=None,
         supervisor=None,
         exception_handler_function=None,
+        bulk_mode=None,
         # end of deprecated arguments
         queue_name: Optional[str] = None,
         sqs_resource: Optional[ServiceResource] = None,
@@ -75,7 +76,12 @@ class Crew(interfaces.CrewInterface):
         polling_interval: Union[int, float] = 1.5,
     ):
 
-        deprecated = ["workers", "supervisor", "exception_handler_function"]
+        deprecated = [
+            "workers",
+            "supervisor",
+            "exception_handler_function",
+            "bulk_mode",
+        ]
 
         for d in deprecated:
             if locals().get(d) is not None:
