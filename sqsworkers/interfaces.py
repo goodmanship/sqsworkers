@@ -19,20 +19,20 @@ class CrewInterface:
 
 class StatsDInterface(metaclass=ABCMeta):
     """
-    Defines the interface for the statsd client and implements default methods.
+    Defines the interface for the statsd client.
     """
 
     @abstractmethod
-    def __init__(self, logger=None):
-        self.logger = logging.getLogger() if logger is None else logger
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError
 
     @abstractmethod
     def increment(self, *args, **kwargs):
-        self.logger.info(f"statsd increment invoked: {args}, {kwargs}")
+        raise NotImplementedError
 
     @abstractmethod
     def gauge(self, *args, **kwargs):
-        self.logger.info(f"statsd gauge invoked: {args}, {kwargs}")
+        raise NotImplementedError
 
     @classmethod
     def __subclasshook__(cls, C):
