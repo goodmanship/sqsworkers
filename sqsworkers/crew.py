@@ -6,7 +6,7 @@ import os
 import time
 import warnings
 from concurrent import futures
-from functools import partial
+from functools import partial, wraps
 from typing import *
 
 import boto3
@@ -15,6 +15,29 @@ from dataclasses import dataclass, asdict, InitVar
 
 from sqsworkers import interfaces
 from sqsworkers.base import StatsDBase
+
+
+def _alert_sentry(method):
+    """
+    Wraps a method such that if it raises an exception, sentry is alerted.
+
+    The decorated method must be an instance method.
+
+    The instance must also have a sentry attribute.
+    """
+
+    @wraps(method)
+    def inner(self, *args, **kwargs):
+        if self.sentry is None:
+            return method(self, *args, **kwargs)
+        else:
+            try:
+                return method(self, *args, **kwargs)
+            except Exception:
+                self.sentry.captureException()
+                raise
+
+    return inner
 
 
 @dataclass
@@ -127,6 +150,7 @@ class Crew(interfaces.CrewInterface):
         self.wait_time = wait_time
         self.polling_interval = polling_interval
 
+    @_alert_sentry
     def start(self):
 
         while True:
@@ -206,6 +230,7 @@ class BulkCrew(Crew):
         self.minimum_messages = minimum_messages
         self.timeout = timeout
 
+    @_alert_sentry
     def start(self):
         while True:
             if self.minimum_messages:
