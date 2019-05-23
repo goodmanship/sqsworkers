@@ -296,12 +296,20 @@ class BulkCrew(Crew):
             self.statsd.increment(
                 "process.record.success", len(messages), tags=[]
             )
-            self.queue.delete_messages(
-                Entries=[
-                    {
-                        "Id": message.message_id,
-                        "ReceiptHandle": message.receipt_handle,
-                    }
-                    for message in messages
-                ]
-            )
+            # make sure we don't try to delete more than 10 messages
+            # at a time or we'll get an error for boto3
+            while messages:
+
+                messages = iter(messages)
+
+                self.queue.delete_messages(
+                    Entries=[
+                        {
+                            "Id": message.message_id,
+                            "ReceiptHandle": message.receipt_handle,
+                        }
+                        for message in it.islice(messages, 10)
+                    ]
+                )
+
+                messages = list(messages)
