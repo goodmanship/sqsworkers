@@ -72,8 +72,6 @@ class Crew(interfaces.CrewInterface):
         sentry=None,
         max_number_of_messages: int = 1,
         wait_time: int = 20,
-        # bulk_mode: bool = False,
-        # chunks_per_bulk: Optional[int] = None,
         polling_interval: Union[int, float] = 1.5,
     ):
 
