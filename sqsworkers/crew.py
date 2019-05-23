@@ -98,6 +98,26 @@ class Crew(interfaces.CrewInterface):
         wait_time: int = 20,
         polling_interval: Union[int, float] = 1.5,
     ):
+        """
+        This class polls on an sqs queue, delegating the work to a message processor that runs in a threadpool.
+
+        Args:
+            sqs_session: boto3 Session object
+            logger: for logging
+            MessageProcessor: transforms/loads the data from sqs
+            workers: deprecated
+            supervisor: deprecated
+            exception_handler_function: deprecated
+            bulk_mode: deprecated
+            queue_name: the name of the queue we want to listen to if not given an sqs_resource
+            sqs_resource: a boto3 sqs Queue object
+            name: the name of the Crew, for logging
+            statsd: statsd client
+            sentry: sentry client
+            max_number_of_messages: passed to self.queue.receive_messages(MaxNumberOfMessages=...)
+            wait_time: passed to self.queue.receive_messages(WaitTimeSeconds=...)
+            polling_interval: How long to wait in between polls on sqs
+        """
 
         deprecated = [
             "workers",
@@ -297,7 +317,7 @@ class BulkCrew(Crew):
                 "process.record.success", len(messages), tags=[]
             )
             # make sure we don't try to delete more than 10 messages
-            # at a time or we'll get an error for boto3
+            # at a time or we'll get an error from boto3
             while messages:
 
                 messages = iter(messages)
