@@ -271,6 +271,8 @@ class BulkCrew(Crew):
                     "process.record.start", len(messages), tags=[]
                 )
 
+            time.sleep(self.polling_interval)
+
     def _task_complete(self, f: futures.Future, messages):
         """Clean up after task and do any necessary logging."""
 
