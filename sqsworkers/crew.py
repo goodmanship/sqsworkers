@@ -60,7 +60,7 @@ class MessageMetadata:
 
 class Crew(interfaces.CrewInterface):
     """
-    Poll on sqs queue and do stuff.
+    This class polls on an sqs queue, delegating the work to a message processor that runs in a threadpool.
     """
 
     def __new__(cls, worker_limit: Optional[int] = None, *args, **kwargs):
@@ -99,7 +99,6 @@ class Crew(interfaces.CrewInterface):
         polling_interval: Union[int, float] = 1.5,
     ):
         """
-        This class polls on an sqs queue, delegating the work to a message processor that runs in a threadpool.
 
         Args:
             sqs_session: boto3 Session object
