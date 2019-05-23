@@ -2,6 +2,21 @@ from abc import ABCMeta, abstractmethod
 import logging
 
 
+class CrewInterface:
+    """
+    This defines the interface for something that will read from an sqs queue
+    in its start method, delegating the work to a MessageProcessor
+    """
+
+    @abstractmethod
+    def __init__(self, MessageProcessor, *args, **kwargs):
+        raise NotImplementedError
+
+    @abstractmethod
+    def start(self):
+        raise NotImplementedError
+
+
 class StatsDInterface(metaclass=ABCMeta):
     """
     Defines the interface for the statsd.
@@ -36,19 +51,3 @@ class StatsDInterface(metaclass=ABCMeta):
                     return False
             return True
         return NotImplemented
-
-
-class CrewInterface:
-    """
-    This defines the interface for something that will read from an sqs queue
-    and fan out messages received to a threadpool that will attempt to do something
-    with those messages.
-    """
-
-    @abstractmethod
-    def __init__(self, MessageProcessor, *args, **kwargs):
-        raise NotImplementedError
-
-    @abstractmethod
-    def start(self):
-        raise NotImplementedError
