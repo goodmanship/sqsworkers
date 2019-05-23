@@ -237,9 +237,9 @@ class BulkCrew(Crew):
 
     def __init__(
         self,
+        *args,
         minimum_messages: Optional[int] = 10,
         timeout: int = 30,
-        *args,
         **kwargs,
     ):
         """
