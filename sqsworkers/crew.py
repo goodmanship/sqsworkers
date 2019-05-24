@@ -128,7 +128,7 @@ class Listener(interfaces.CrewInterface):
         sentry=None,
         max_number_of_messages: int = 1,
         wait_time: int = 20,
-        polling_interval: Union[int, float] = 1.5,
+        polling_interval: Union[int, float] = 1,
         **kwargs,
     ):
         """
