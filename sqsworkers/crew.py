@@ -41,6 +41,11 @@ class Crew(interfaces.CrewInterface):
 
     def __init__(self, *args, bulk_mode=False, **kwargs):
         """Instantiate a daemon thread with either a regular or bulk listener."""
+        logging.info(
+            "instantiating background thread with {} listener".format(
+                "non-bulk" if not bulk_mode else "bulk"
+            )
+        )
         self.listener = (
             Listener(*args, **kwargs)
             if not bulk_mode
@@ -52,9 +57,11 @@ class Crew(interfaces.CrewInterface):
 
     def start(self):
         """Start listener in background thread."""
+        logging.info("starting background listener thread")
         self._thread.start()
 
     def join(self, timeout=None):
+        logging.info("waiting on background thread to finish")
         self._thread.join(timeout=timeout)
 
     def stop(self, timeout=None):
@@ -85,6 +92,9 @@ class Listener(interfaces.CrewInterface):
             @wraps(method)
             def inner(*args, **kwargs):
                 if sentry is None:
+                    logging.warning(
+                        f"sentry is None. exceptions raised from {method.__name__} will not be sent to sentry"
+                    )
                     return method(*args, **kwargs)
                 else:
                     try:
@@ -305,6 +315,11 @@ class BulkListener(Listener):
                     len(messages) < self.minimum_messages
                     and (time.perf_counter() - start) < self.timeout
                 ):
+                    self.logger.info(
+                        "length of messages ({}) below minimum set to pass to message processor ({}). polling".format(
+                            len(messages), self.minimum_messages
+                        )
+                    )
                     messages += self.queue.receive_messages(
                         AttributeNames=["All"],
                         MessageAttributeNames=["All"],
