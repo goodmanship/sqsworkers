@@ -15,6 +15,22 @@ class CrewInterface:
     def start(self):
         raise NotImplementedError
 
+    @classmethod
+    def __subclasshook__(cls, C):
+        """
+        This method guarantees that any class that implements this class' abstract methods
+        will be considered a subclass.
+        """
+        if cls is CrewInterface:
+            for method in cls.__abstractmethods__:
+                if not any(method in c.__dict__ for c in C.__mro__):
+                    logging.error(
+                        f"{C.__name__} fails to implement {method} method"
+                    )
+                    return False
+            return True
+        return NotImplemented
+
 
 class StatsDInterface(metaclass=ABCMeta):
     """
