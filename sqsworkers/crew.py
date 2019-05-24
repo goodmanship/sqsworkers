@@ -40,8 +40,7 @@ class Crew(interfaces.CrewInterface):
     """Provide the top-level interface to Crew."""
 
     def __init__(self, *args, bulk_mode=False, **kwargs):
-        """Instantiate the daemon thread with either a regular or bulk listener."""
-        self.bulk_mode = bulk_mode
+        """Instantiate a daemon thread with either a regular or bulk listener."""
         self.listener = (
             Listener(*args, **kwargs)
             if not bulk_mode
@@ -52,7 +51,7 @@ class Crew(interfaces.CrewInterface):
         )
 
     def start(self):
-        """Start listener or bulk listener in background thread."""
+        """Start listener in background thread."""
         self._thread.start()
 
     def join(self, timeout=None):
