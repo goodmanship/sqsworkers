@@ -73,7 +73,7 @@ class Listener(interfaces.CrewInterface):
         Also ensures our start method propogates exceptions to sentry.
         """
 
-        def alert_sentry(method):
+        def alert_sentry(method, sentry=None):
             """
             Wraps a method such that if it raises an exception, sentry is alerted.
 
@@ -83,14 +83,14 @@ class Listener(interfaces.CrewInterface):
             """
 
             @wraps(method)
-            def inner(self, *args, **kwargs):
-                if self.sentry is None:
-                    return method(self, *args, **kwargs)
+            def inner(*args, **kwargs):
+                if sentry is None:
+                    return method(*args, **kwargs)
                 else:
                     try:
-                        return method(self, *args, **kwargs)
+                        return method(*args, **kwargs)
                     except Exception:
-                        self.sentry.captureException()
+                        sentry.captureException()
                         raise
 
             return inner
@@ -106,7 +106,7 @@ class Listener(interfaces.CrewInterface):
 
         obj = super().__new__(cls)
 
-        obj.start = alert_sentry(obj.start)
+        obj.start = alert_sentry(obj.start, sentry=kwargs.get("sentry"))
 
         return obj
 
@@ -222,7 +222,7 @@ class Listener(interfaces.CrewInterface):
                 for message in messages:
 
                     task: futures.Future = self._executor.submit(
-                        self.message_processor, message
+                        self.message_processor(message).start
                     )
 
                     task.add_done_callback(
@@ -321,7 +321,7 @@ class BulkListener(Listener):
                 )
 
                 task: futures.Future = self._executor.submit(
-                    self.message_processor, messages
+                    self.message_processor(messages).start
                 )
 
                 task.add_done_callback(
