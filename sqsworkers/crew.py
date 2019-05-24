@@ -7,6 +7,7 @@ import time
 import warnings
 from concurrent import futures
 from functools import partial, wraps
+from threading import Thread
 from typing import *
 
 import boto3
@@ -15,29 +16,6 @@ from dataclasses import dataclass, asdict, InitVar
 
 from sqsworkers import interfaces
 from sqsworkers.base import StatsDBase
-
-
-def _alert_sentry(method):
-    """
-    Wraps a method such that if it raises an exception, sentry is alerted.
-
-    The decorated method must be an instance method.
-
-    The instance must also have a sentry attribute.
-    """
-
-    @wraps(method)
-    def inner(self, *args, **kwargs):
-        if self.sentry is None:
-            return method(self, *args, **kwargs)
-        else:
-            try:
-                return method(self, *args, **kwargs)
-            except Exception:
-                self.sentry.captureException()
-                raise
-
-    return inner
 
 
 @dataclass
@@ -59,6 +37,32 @@ class MessageMetadata:
 
 
 class Crew(interfaces.CrewInterface):
+    """Provide the top-level interface to Crew."""
+
+    def __init__(self, *args, bulk_mode=False, **kwargs):
+        """Instantiate the daemon thread with either a regular or bulk listener."""
+        self.bulk_mode = bulk_mode
+        self.listener = (
+            Listener(*args, **kwargs)
+            if not bulk_mode
+            else BulkListener(*args, **kwargs)
+        )
+        self._thread = Thread(
+            name=self.listener.name, target=self.listener.start, daemon=True
+        )
+
+    def start(self):
+        """Start listener or bulk listener in background thread."""
+        self._thread.start()
+
+    def join(self, timeout=None):
+        self._thread.join(timeout=timeout)
+
+    def stop(self, timeout=None):
+        self.join(timeout=timeout)
+
+
+class Listener(interfaces.CrewInterface):
     """
     This class polls on an sqs queue, delegating the work to a message processor that runs in a threadpool.
     """
@@ -66,7 +70,32 @@ class Crew(interfaces.CrewInterface):
     def __new__(cls, *args, worker_limit: Optional[int] = None, **kwargs):
         """
         Ensures we only create one threadpool executor per class.
+
+        Also ensures our start method propogates exceptions to sentry.
         """
+
+        def alert_sentry(method):
+            """
+            Wraps a method such that if it raises an exception, sentry is alerted.
+
+            The decorated method must be an instance method.
+
+            The instance must also have a sentry attribute.
+            """
+
+            @wraps(method)
+            def inner(self, *args, **kwargs):
+                if self.sentry is None:
+                    return method(self, *args, **kwargs)
+                else:
+                    try:
+                        return method(self, *args, **kwargs)
+                    except Exception:
+                        self.sentry.captureException()
+                        raise
+
+            return inner
+
         if not hasattr(cls, "_executor"):
             cls._executor = futures.ThreadPoolExecutor(
                 max_workers=worker_limit
@@ -76,7 +105,11 @@ class Crew(interfaces.CrewInterface):
         if not hasattr(cls, "_count"):
             cls._count = it.count(1)
 
-        return super().__new__(cls)
+        obj = super().__new__(cls)
+
+        obj.start = alert_sentry(obj.start)
+
+        return obj
 
     def __init__(
         self,
@@ -170,7 +203,6 @@ class Crew(interfaces.CrewInterface):
         self.wait_time = wait_time
         self.polling_interval = polling_interval
 
-    @_alert_sentry
     def start(self):
 
         while True:
@@ -229,7 +261,7 @@ class Crew(interfaces.CrewInterface):
             )
 
 
-class BulkCrew(Crew):
+class BulkListener(Listener):
     """
     This class is identical to the regular crew, with the exception
     that it will pass a list of messages to its message processor, as
@@ -261,7 +293,6 @@ class BulkCrew(Crew):
                 f"of messages ({minimum_messages}"
             )
 
-    @_alert_sentry
     def start(self):
         while True:
             if self.minimum_messages:
