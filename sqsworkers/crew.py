@@ -83,10 +83,6 @@ class Listener(interfaces.CrewInterface):
         def alert_sentry(method, sentry=None):
             """
             Wraps a method such that if it raises an exception, sentry is alerted.
-
-            The decorated method must be an instance method.
-
-            The instance must also have a sentry attribute.
             """
 
             @wraps(method)
