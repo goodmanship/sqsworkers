@@ -4,8 +4,7 @@ import logging
 
 class CrewInterface:
     """
-    This defines the interface for something that will read from an sqs queue
-    in its start method, delegating the work to a MessageProcessor
+    Any class with an __init__ and start method will be a subclass of this interface.
     """
 
     @abstractmethod

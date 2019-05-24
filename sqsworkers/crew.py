@@ -187,6 +187,10 @@ class Listener(interfaces.CrewInterface):
             logger, extra={"extra": {"crew.name": self.name}}
         )
 
+        assert issubclass(
+            MessageProcessor, interfaces.CrewInterface
+        ), f"{MessageProcessor} does not conform to {interfaces.CrewInterface.__name__}"
+
         self.message_processor = self.MessageProcessor = MessageProcessor
 
         statsd = StatsDBase(logger=logger) if statsd is None else statsd
