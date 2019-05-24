@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 import logging
 
 
-class CrewInterface:
+class CrewInterface(metaclass=ABCMeta):
     """
     Any class with an __init__ and start method will be a subclass of this interface.
     """
