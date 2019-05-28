@@ -86,19 +86,10 @@ def bulk_crew(sqs_session, message_processor, sqs_resource, statsd, sentry):
     )
 
 
-@pytest.fixture(params=[True, False])
-def crew(
-    request, sqs_session, message_processor, sqs_resource, statsd, sentry
-):
+@pytest.fixture(params=["bulk_crew", "non_bulk_crew"])
+def crew(request, non_bulk_crew, bulk_crew):
     """Returns a bulk or non-bulk crew based on the request param."""
-    return Crew(
-        sqs_session=sqs_session,
-        sqs_resource=sqs_resource,
-        MessageProcessor=message_processor,
-        statsd=statsd,
-        sentry=sentry,
-        bulk_mode=request.param,
-    )
+    return locals().get(request.param)
 
 
 def test_crew_instantiation(non_bulk_crew, bulk_crew):
