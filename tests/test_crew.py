@@ -3,7 +3,7 @@ from unittest import mock
 import pytest
 
 from sqsworkers.base import StatsDBase
-from sqsworkers.crew import Crew, Listener, BulkListener
+from sqsworkers.crew import Crew, BaseListener, BulkListener
 from sqsworkers.interfaces import CrewInterface
 
 
@@ -103,7 +103,7 @@ def crew(
 
 def test_crew_instantiation(non_bulk_crew, bulk_crew):
 
-    assert isinstance(non_bulk_crew.listener, Listener)
+    assert isinstance(non_bulk_crew.listener, BaseListener)
     assert not isinstance(non_bulk_crew, BulkListener)
 
     assert isinstance(bulk_crew.listener, BulkListener)
