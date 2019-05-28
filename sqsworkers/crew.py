@@ -63,7 +63,7 @@ class BulkListener(BaseListener):
 
         Args:
             minimum_messages: The minimum number of messages we want to pass to the message processor
-            timeout: if we set minimum messages, this is how long we'll keep trying to poll on sqs to get
+            timeout: if we set minimum messages, this is how many seconds we'll keep trying to poll on sqs to get
                 that number of messages
         """
         super().__init__(*args, **kwargs)
