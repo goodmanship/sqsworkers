@@ -2,6 +2,7 @@ import os
 from setuptools import setup, find_packages
 
 VERSION = "0.2.0"
+DEVELOPMENT_REQUIREMENTS = ["pytest"]
 
 
 def read(fname):
@@ -18,4 +19,8 @@ setup(
     author="Rio Goodman",
     author_email="riogoodman@gmail.com",
     install_requires=["boto3", "dataclasses"],
+    extras_require={
+        "dev": DEVELOPMENT_REQUIREMENTS,
+        "test": DEVELOPMENT_REQUIREMENTS,
+    },
 )

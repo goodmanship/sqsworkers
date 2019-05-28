@@ -11,6 +11,7 @@ Versions
 ========
 
 ::
+    0.2.0 - rewrite implemention on top of concurrent.futures; adds tests
     0.1.13 - support bulk message processor
     0.1.12 - adding exception handler
     0.1.11 - customize queue polling
@@ -30,19 +31,16 @@ A basic call to SQS Workers would look like this:
 
 .. code:: python
 
-    options = {
-        'sqs_session': sqs_session,
-        'queue_name': 'ddev-test-queue',
-        'sqs_resource': sqs_resource,
-        'MessageProcessor': MsgProcessor,
-        'logger': msg_logger,
-        'statsd': statsd,
-        'sentry': None,
-        'worker_limit': 1
-      }
-      c = Crew(**options)
+    crew = Crew(
+        sqs_session=my_session,
+        queue_name=my_queue_name,
+        MessageProcessor=SimpleNamespace(
+            start=lambda message: print(f'processing {messsage}')
+        )
 
-You can see a simple demo app `here <demo/basic_message_processor.py>`__
+    crew.start()
+
+The `tests <tests/test_crew.py>`__ should be informative
 
 Installation
 ============
@@ -61,10 +59,7 @@ Tests
 =====
 
 Make sure tests pass: ``pytest tests/test_crew.py``
-Note: Because of timing/queue cleanup issues (relating to the working of SQS), the tests
-involving use of real aws may not succeed consistently. Increasing the wait time before
-the asserts will improve the chances of having the tests pass. Another way is to specify
-a quicker visibility timeout for the messages in the queue
+
 
 Contributors
 ============

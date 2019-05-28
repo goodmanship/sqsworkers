@@ -119,7 +119,6 @@ class Listener(interfaces.CrewInterface):
     def __init__(
         self,
         sqs_session: boto3.Session,
-        logger: logging.Logger,
         MessageProcessor,
         # the following arguments are deprecated and will be ignored
         workers=None,
@@ -127,6 +126,7 @@ class Listener(interfaces.CrewInterface):
         exception_handler_function=None,
         bulk_mode=None,
         # end of deprecated arguments
+        logger=None,
         queue_name: Optional[str] = None,
         sqs_resource: Optional[ServiceResource] = None,
         name: Optional[str] = None,
@@ -190,7 +190,8 @@ class Listener(interfaces.CrewInterface):
         )
 
         self.logger = logging.LoggerAdapter(
-            logger, extra={"extra": {"crew.name": self.name}}
+            (logging.getLogger() if logger is None else logger),
+            extra={"extra": {"crew.name": self.name}},
         )
 
         assert issubclass(
@@ -230,10 +231,13 @@ class Listener(interfaces.CrewInterface):
                 )
 
                 for message in messages:
+                    self.logger.info(f"processing message: {message}")
 
                     task: futures.Future = self._executor.submit(
                         self.message_processor(message).start
                     )
+
+                    self.logger.info(f"processing task: {task}")
 
                     task.add_done_callback(
                         partial(self._task_complete, message=message)
