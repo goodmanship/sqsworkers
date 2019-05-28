@@ -58,7 +58,16 @@ And then install using pip ``pip install -r requirements.txt``
 Tests
 =====
 
-Make sure tests pass: ``pytest tests/test_crew.py``
+Ensure tests pass
+
+::
+
+    git clone https://github.com/goodmanship/sqsworkers
+    cd sqsworkers
+    python3 -m venv venv
+    . venv/bin/activate
+    pip install -e .[dev]
+    pytest
 
 
 Contributors
@@ -94,5 +103,5 @@ individual CLA is for those contributing as an individual.
 License
 =======
 
-Copyright (c) 2017 Atlassian and others. Apache 2.0 licensed, see
+Copyright (c) 2019 Atlassian and others. Apache 2.0 licensed, see
 `LICENSE <LICENSE>`__ file.
