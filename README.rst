@@ -15,11 +15,16 @@ A basic call to SQS Workers would look like this:
 
 .. code:: python
 
+    from types import SimpleNamespace
+
+    from sqsworkers import Crew
+
+
     crew = Crew(
         sqs_session=my_session,
         queue_name=my_queue_name,
         MessageProcessor=SimpleNamespace(
-            start=lambda message: print(f'processing {messsage}')
+            start=lambda message: print(f'processing {message}')
         )
 
     crew.start()
