@@ -26,6 +26,7 @@ A basic call to SQS Workers would look like this:
         MessageProcessor=SimpleNamespace(
             start=lambda message: print(f'processing {message}')
         )
+    )
 
     crew.start()
 
