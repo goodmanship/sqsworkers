@@ -193,6 +193,8 @@ def test_exception(crew, message, messages, executor_future, caplog):
 
     crew.listener._task_complete(future, (messages if bulk_mode else message))
 
+    assert any("derp raised" in r.msg for r in caplog.records)
+
     crew.listener.statsd.increment.assert_called_with(
         "process.record.failure", 10 if bulk_mode else 1, tags=[]
     )
