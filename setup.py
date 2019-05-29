@@ -2,7 +2,16 @@ import os
 from setuptools import setup, find_packages
 
 VERSION = "0.2.0"
-DEVELOPMENT_REQUIREMENTS = ["pytest", "coverage", "pygments", 'pytest-cov']
+DEVELOPMENT_REQUIREMENTS = [
+    "pytest",
+    "coverage",
+    "pygments",
+    "pytest-cov",
+    "mypy",
+    "pytest-mypy",
+    "black",
+    "pytest-black",
+]
 
 
 def read(fname):
