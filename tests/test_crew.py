@@ -1,5 +1,6 @@
-from unittest import mock
 import json
+from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 
@@ -8,32 +9,24 @@ from sqsworkers.crew import Crew, BaseListener, BulkListener
 from sqsworkers.interfaces import CrewInterface
 
 
-@pytest.fixture(autouse=True)
-def monkeypatch_thread():
-    """Monkeypatch threading.Thread ."""
-    with mock.patch("threading.Thread", autospec=True) as Thread:
-        target = None
-
-        def set_target(t):
-            nonlocal target
-            target = t
-
-        Thread.side_effect = lambda *args, target, **kwargs: set_target(target)
-
-
 @pytest.fixture
 def message():
-    msg = mock.Mock()
-    msg.message_id = "message_id"
-    msg.receipt_handle = "receipt_handle"
-    msg.body = json.dumps(
-        {"eventId": "event_id", "type": "type", "schema": "schema"}
+    return SimpleNamespace(
+        message_id="message_id",
+        receipt_handle="receipt_handle",
+        body=json.dumps(
+            {"eventId": "event_id", "type": "type", "schema": "schema"}
+        ),
     )
-    return msg
 
 
 @pytest.fixture
-def executor_future(message):
+def messages(message, length=10):
+    return [message] * length
+
+
+@pytest.fixture(params=[None, Exception("derp")])
+def executor_future(request, message):
     """Monkey patch concurrent.futures.ThreadPoolExecutor to do basically nothing."""
 
     with mock.patch(
@@ -43,7 +36,7 @@ def executor_future(message):
     ) as Future:
         executor = ThreadPoolExecutor()
         future = Future()
-        future.exception.return_value = None
+        future.exception.return_value = request.param
         executor.submit.return_value = future
         future.add_done_callback.side_effect = lambda callable: callable(
             future
@@ -155,15 +148,18 @@ def test_crew_instantiation(non_bulk_crew, bulk_crew):
     non_bulk_crew.listener.statsd.increment.assert_called()
 
 
-@pytest.mark.parametrize("crew_,", ["bulk_crew", "non_bulk_crew"])
-def test_crew_start(crew_, bulk_crew, non_bulk_crew):
-    crew = locals().get(crew_)
+def test_crew_start(crew, executor_future):
+    _, future = executor_future
+
     crew.start()
 
     crew.stop(timeout=1)
 
     crew.listener._executor.submit.assert_called()
     crew.listener.statsd.increment.assert_called()
+
+    if future.exception() is not None:
+        crew.listener.queue.delete_messages.assert_called()
 
 
 def test_crew_stop(crew, timeout=1):
@@ -182,16 +178,21 @@ def test_timeout_warning(sqs_session, sqs_resource, message_processor, caplog):
         minimum_messages=1,
     )
 
-    assert any("longer" in record.msg for record in caplog.records)
+    assert any(
+        "wait time (2) is longer than the timeout (1)" in record.msg
+        for record in caplog.records
+    )
 
 
-# def test_exception(crew, executor_future, caplog):
-#     _, future = executor_future
-#
-#     future.exception.return_value = Exception("derp")
-#
-#     crew.start()
-#
-#     crew.stop(timeout=1)
-#
-#     assert any("derp raised" in r.msg for r in caplog.records)
+def test_exception(crew, message, messages, executor_future, caplog):
+    _, future = executor_future
+
+    future.exception.return_value = Exception("derp")
+
+    bulk_mode = isinstance(crew.listener, BulkListener)
+
+    crew.listener._task_complete(future, (messages if bulk_mode else message))
+
+    crew.listener.statsd.increment.assert_called_with(
+        "process.record.failure", 10 if bulk_mode else 1, tags=[]
+    )

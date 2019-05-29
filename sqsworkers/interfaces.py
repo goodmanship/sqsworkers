@@ -1,5 +1,5 @@
-from abc import ABCMeta, abstractmethod
 import logging
+from abc import ABCMeta, abstractmethod
 
 
 class CrewInterface(metaclass=ABCMeta):
