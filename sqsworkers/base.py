@@ -89,10 +89,10 @@ class BaseListener(interfaces.CrewInterface):
         workers=None,
         supervisor=None,
         exception_handler_function=None,
-        MessageProcessor=None,
+        MessageProcessor: Optional[Callable[[Any], Any]] = None,
         # end of deprecated arguments
-        message_processor=None,
-        logger=None,
+        message_processor: Optional[Callable[[Any], Any]] = None,
+        logger: Optional[logging.Logger] = None,
         queue_name: Optional[str] = None,
         sqs_resource: Optional[ServiceResource] = None,
         name: Optional[str] = None,

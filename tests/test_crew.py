@@ -27,8 +27,6 @@ def messages(message, length=10):
 
 @pytest.fixture(params=[None, Exception("derp")])
 def executor_future(request, message):
-    """Monkey patch concurrent.futures.ThreadPoolExecutor to do basically nothing."""
-
     with mock.patch(
         "concurrent.futures.ThreadPoolExecutor", autospec=True
     ) as ThreadPoolExecutor, mock.patch(
