@@ -124,8 +124,10 @@ class BulkListener(BaseListener):
 
             time.sleep(self.polling_interval)
 
-    def _task_complete(self, f: futures.Future, messages):
+    def _task_complete(self, f: futures.Future, messages: Iterable[Any]):
         """Clean up after task and do any necessary logging."""
+
+        messages = list(messages)
 
         exception = f.exception()
 

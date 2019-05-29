@@ -229,7 +229,7 @@ class BaseListener(interfaces.CrewInterface):
 
             time.sleep(self.polling_interval)
 
-    def _task_complete(self, f: futures.Future, message):
+    def _task_complete(self, f: futures.Future, message: Any):
         """
         Clean up after the task and do any necessary logging.
         """

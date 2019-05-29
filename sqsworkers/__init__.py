@@ -19,6 +19,6 @@ class MessageMetadata:
 
     def __post_init__(self, message: Any):
         body: dict = json.loads(message.body)
-        self.event_id = body.get("eventId")
-        self.event_type = body.get("type")
+        self.event_id = body.get("eventId", "")
+        self.event_type = body.get("type", "")
         self.schema = body.get("schema")
