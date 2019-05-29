@@ -196,3 +196,24 @@ def test_exception(crew, message, messages, executor_future, caplog):
     crew.listener.statsd.increment.assert_called_with(
         "process.record.failure", 10 if bulk_mode else 1, tags=[]
     )
+
+
+@pytest.mark.parametrize(
+    "arg,",
+    [
+        "workers",
+        "supervisor",
+        "exception_handler_function",
+        "MessageProcessor",
+    ],
+)
+def test_deprecation_warnings(
+    arg, sqs_session, sqs_resource, message_processor
+):
+    with pytest.warns(DeprecationWarning):
+        kwargs = (
+            {"message_processor": message_processor, arg: 1}
+            if arg != "MessageProcessor"
+            else {"MessageProcessor": message_processor}
+        )
+        Crew(sqs_session=sqs_session, sqs_resource=sqs_resource, **kwargs)

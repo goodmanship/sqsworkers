@@ -85,14 +85,13 @@ class BaseListener(interfaces.CrewInterface):
     def __init__(
         self,
         sqs_session: boto3.Session,
-        # the following arguments are deprecated and will be ignored
+        # the following arguments are deprecated
         workers=None,
         supervisor=None,
         exception_handler_function=None,
-        bulk_mode=None,
+        MessageProcessor=None,
         # end of deprecated arguments
         message_processor=None,
-        MessageProcessor=None,
         logger=None,
         queue_name: Optional[str] = None,
         sqs_resource: Optional[ServiceResource] = None,
@@ -142,7 +141,8 @@ class BaseListener(interfaces.CrewInterface):
                         "MessageProcessor argument will be deprecated in future version",
                         "please use message_processor instead",
                     ]
-                )
+                ),
+                DeprecationWarning,
             )
 
         deprecated = [
