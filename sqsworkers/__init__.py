@@ -3,7 +3,7 @@ __VERSION__ = "0.2.0"
 import json
 from typing import Any
 
-from dataclasses import dataclass, InitVar
+from dataclasses import dataclass, field, InitVar
 
 
 @dataclass
@@ -13,9 +13,9 @@ class MessageMetadata:
     """
 
     message: InitVar[Any]
-    event_id: str
-    event_type: str
-    event_schema: Any
+    event_id: str = field(init=False)
+    event_type: str = field(init=False)
+    schema: Any = field(init=False)
 
     def __post_init__(self, message: Any):
         body: dict = json.loads(message.body)

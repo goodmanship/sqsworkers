@@ -71,7 +71,7 @@ class BulkListener(BaseListener):
         self.timeout = timeout
 
         if minimum_messages and self.wait_time > self.timeout:
-            logging.warning(
+            self.logger.warning(
                 f"the wait time ({self.wait_time}) is longer than the timeout ({self.timeout}) "
                 f"meaning sqs will be long-polled only once to attempt to get the minimum number "
                 f"of messages ({minimum_messages}"

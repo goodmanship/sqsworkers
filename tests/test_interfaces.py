@@ -65,3 +65,21 @@ def test_crew_interface(valid_crew_subclass, invalid_crew_subclass):
 def test_statsd_interface(valid_statsd_interface, invalid_statsd_interface):
     assert issubclass(valid_statsd_interface, StatsDInterface)
     assert not issubclass(invalid_statsd_interface, StatsDInterface)
+
+
+def test_invalid_statsd_init():
+    with pytest.raises(TypeError):
+
+        class Invalid(StatsDInterface):
+            """"""
+
+        Invalid()
+
+
+def test_invalid_crew_init():
+    with pytest.raises(TypeError):
+
+        class Invalid(CrewInterface):
+            """"""
+
+        Invalid()

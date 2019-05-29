@@ -34,7 +34,9 @@ class BaseListener(interfaces.CrewInterface):
     This class polls on an sqs queue, delegating the work to a message processor that runs in a threadpool.
     """
 
-    def __new__(cls, *args, worker_limit: Optional[int] = None, **kwargs):
+    def __new__(
+        cls, *args, worker_limit: Optional[int] = None, executor=None, **kwargs
+    ):
         """
         Ensures we only create one threadpool executor per class.
 
@@ -63,9 +65,12 @@ class BaseListener(interfaces.CrewInterface):
             return inner
 
         if not hasattr(cls, "_executor"):
-            cls._executor = futures.ThreadPoolExecutor(
-                max_workers=worker_limit
+            cls._executor = (
+                futures.ThreadPoolExecutor(max_workers=worker_limit)
+                if executor is None
+                else executor
             )
+
             atexit.register(cls._executor.shutdown)
 
         if not hasattr(cls, "_count"):
@@ -80,13 +85,14 @@ class BaseListener(interfaces.CrewInterface):
     def __init__(
         self,
         sqs_session: boto3.Session,
-        MessageProcessor,
         # the following arguments are deprecated and will be ignored
         workers=None,
         supervisor=None,
         exception_handler_function=None,
         bulk_mode=None,
         # end of deprecated arguments
+        message_processor=None,
+        MessageProcessor=None,
         logger=None,
         queue_name: Optional[str] = None,
         sqs_resource: Optional[ServiceResource] = None,
@@ -117,6 +123,27 @@ class BaseListener(interfaces.CrewInterface):
             wait_time: passed to self.queue.receive_messages(WaitTimeSeconds=...)
             polling_interval: How long to wait in between polls on sqs
         """
+        assert bool(MessageProcessor) ^ bool(
+            message_processor
+        ), f"message_processor {message_processor} and MessageProcessor {MessageProcessor} arguments are mutually exclusive"
+
+        message_processor = message_processor or MessageProcessor
+
+        assert issubclass(
+            message_processor, interfaces.CrewInterface
+        ), f"{message_processor.__name__} does not conform to {interfaces.CrewInterface.__name__}"
+
+        self.message_processor = message_processor
+
+        if MessageProcessor is not None:
+            warnings.warn(
+                os.linesep.join(
+                    [
+                        "MessageProcessor argument will be deprecated in future version",
+                        "please use message_processor instead",
+                    ]
+                )
+            )
 
         deprecated = [
             "workers",
@@ -154,12 +181,6 @@ class BaseListener(interfaces.CrewInterface):
             (logging.getLogger() if logger is None else logger),
             extra={"extra": {"crew.name": self.name}},
         )
-
-        assert issubclass(
-            MessageProcessor, interfaces.CrewInterface
-        ), f"{MessageProcessor.__name__} does not conform to {interfaces.CrewInterface.__name__}"
-
-        self.message_processor = self.MessageProcessor = MessageProcessor
 
         statsd = StatsDBase(logger=logger) if statsd is None else statsd
 
