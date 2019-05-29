@@ -23,7 +23,7 @@ A basic call to SQS Workers would look like this:
     crew = Crew(
         sqs_session=my_session,
         queue_name=my_queue_name,
-        MessageProcessor=SimpleNamespace(
+        message_processor=SimpleNamespace(
             start=lambda message: print(f'processing {message}')
         )
     )
