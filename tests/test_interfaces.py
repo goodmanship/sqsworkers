@@ -1,4 +1,5 @@
 from sqsworkers.interfaces import CrewInterface, StatsDInterface
+from sqsworkers.base import StatsDBase
 
 import pytest
 
@@ -50,7 +51,7 @@ def valid_statsd_interface():
 @pytest.fixture
 def invalid_statsd_interface():
     class StatsD:
-        def increment(self):
+        def gauge(self):
             """"""
 
     return StatsD
@@ -83,3 +84,8 @@ def test_invalid_crew_init():
             """"""
 
         Invalid()
+
+
+def test_base_statsd():
+    statsd = StatsDBase()
+    statsd.increment()

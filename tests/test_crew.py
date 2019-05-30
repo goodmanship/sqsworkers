@@ -8,8 +8,6 @@ from sqsworkers.base import StatsDBase
 from sqsworkers.crew import Crew, BaseListener, BulkListener
 from sqsworkers.interfaces import CrewInterface
 
-STOP_CREW_TIMEOUT = 0.1
-
 
 @pytest.fixture
 def message():
@@ -50,9 +48,9 @@ def executor(future):
         yield executor
 
 
-@pytest.fixture(params=[mock.MagicMock(), None])
-def sentry(request):
-    return request.param
+# @pytest.fixture(params=[mock.MagicMock(), None])
+# def sentry(request):
+#     return request.param
 
 
 @pytest.fixture
@@ -88,7 +86,7 @@ def message_processor():
 
 @pytest.fixture
 def base_listener(
-    sqs_session, message_processor, sqs_resource, statsd, sentry, executor
+    sqs_session, message_processor, sqs_resource, statsd, executor
 ):
 
     return BaseListener(
@@ -96,7 +94,6 @@ def base_listener(
         MessageProcessor=message_processor,
         sqs_resource=sqs_resource,
         statsd=statsd,
-        sentry=sentry,
         executor=executor,
         daemon=False,
     )
@@ -104,13 +101,7 @@ def base_listener(
 
 @pytest.fixture(params=[10, None])
 def bulk_listener(
-    request,
-    sqs_session,
-    message_processor,
-    sqs_resource,
-    statsd,
-    sentry,
-    executor,
+    request, sqs_session, message_processor, sqs_resource, statsd, executor
 ):
     minimum_messages = request.param
 
@@ -119,7 +110,6 @@ def bulk_listener(
         MessageProcessor=message_processor,
         sqs_resource=sqs_resource,
         statsd=statsd,
-        sentry=sentry,
         executor=executor,
         daemon=False,
         minimum_messages=minimum_messages,
@@ -142,7 +132,7 @@ def test_crew_starts_and_executes_successfully(crew, future):
 
     crew.start()
 
-    crew.stop(timeout=STOP_CREW_TIMEOUT)
+    crew.stop()
 
     crew.listener._executor.submit.assert_called()
     crew.listener.statsd.increment.assert_called()
@@ -172,7 +162,7 @@ def test_exception_in_listener_threadpool(
 
 def test_crew_stops_successfully(crew):
     crew.start()
-    crew.stop(timeout=STOP_CREW_TIMEOUT)
+    crew.stop()
 
 
 def test_bulk_listener_timeout_warning(
@@ -213,3 +203,25 @@ def test_deprecation_warnings(
             else {"MessageProcessor": message_processor}
         )
         Crew(sqs_session=sqs_session, sqs_resource=sqs_resource, **kwargs)
+
+
+def test_exceptions_captured_by_sentry(
+    sqs_session, sqs_resource, message_processor
+):
+    sentry = mock.MagicMock()
+
+    class ExceptionalListener(BaseListener):
+        def start(self):
+            raise Exception("derp")
+
+    listener = ExceptionalListener(
+        sqs_session=sqs_session,
+        sqs_resource=sqs_resource,
+        message_processor=message_processor,
+        sentry=sentry,
+    )
+
+    with pytest.raises(Exception, match="derp"):
+        listener.start()
+
+    sentry.captureException.assert_called()

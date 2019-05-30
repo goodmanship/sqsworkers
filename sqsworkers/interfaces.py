@@ -37,10 +37,6 @@ class StatsDInterface(metaclass=ABCMeta):
     def increment(self, *args, **kwargs):
         raise NotImplementedError
 
-    @abstractmethod
-    def gauge(self, *args, **kwargs):
-        raise NotImplementedError
-
     @classmethod
     def __subclasshook__(cls, C):
         """

@@ -23,10 +23,14 @@ class Crew(interfaces.CrewInterface):
         )
 
         self.listener = (
-            BaseListener(*args, **kwargs)
-            if not bulk_mode
-            else BulkListener(*args, **kwargs)
-        ) if listener is None else listener
+            (
+                BaseListener(*args, **kwargs)
+                if not bulk_mode
+                else BulkListener(*args, **kwargs)
+            )
+            if listener is None
+            else listener
+        )
 
         self._thread = Thread(
             name=self.listener.name, target=self.listener.start, daemon=True
@@ -41,7 +45,7 @@ class Crew(interfaces.CrewInterface):
         logging.info("waiting on background thread to finish")
         self._thread.join(timeout=timeout)
 
-    def stop(self, timeout=None):
+    def stop(self, timeout=0.1):
         self.join(timeout=timeout)
 
 

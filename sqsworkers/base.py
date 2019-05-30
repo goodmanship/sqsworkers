@@ -256,6 +256,3 @@ class StatsDBase(interfaces.StatsDInterface):
 
     def increment(self, *args, **kwargs):
         self.logger.info(f"statsd increment invoked: {args}, {kwargs}")
-
-    def gauge(self, *args, **kwargs):
-        self.logger.info(f"statsd gauge invoked: {args}, {kwargs}")
