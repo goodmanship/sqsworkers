@@ -8,6 +8,8 @@ from sqsworkers.base import StatsDBase
 from sqsworkers.crew import Crew, BaseListener, BulkListener
 from sqsworkers.interfaces import CrewInterface
 
+STOP_CREW_TIMEOUT = 0.1
+
 
 @pytest.fixture
 def message():
@@ -48,9 +50,9 @@ def executor(future):
         yield executor
 
 
-@pytest.fixture
-def sentry():
-    return mock.MagicMock()
+@pytest.fixture(params=[mock.MagicMock(), None])
+def sentry(request):
+    return request.param
 
 
 @pytest.fixture
@@ -100,10 +102,17 @@ def base_listener(
     )
 
 
-@pytest.fixture
+@pytest.fixture(params=[10, None])
 def bulk_listener(
-    sqs_session, message_processor, sqs_resource, statsd, sentry, executor
+    request,
+    sqs_session,
+    message_processor,
+    sqs_resource,
+    statsd,
+    sentry,
+    executor,
 ):
+    minimum_messages = request.param
 
     return BulkListener(
         sqs_session=sqs_session,
@@ -113,6 +122,7 @@ def bulk_listener(
         sentry=sentry,
         executor=executor,
         daemon=False,
+        minimum_messages=minimum_messages,
     )
 
 
@@ -132,7 +142,7 @@ def test_crew_starts_and_executes_successfully(crew, future):
 
     crew.start()
 
-    crew.stop(timeout=1)
+    crew.stop(timeout=STOP_CREW_TIMEOUT)
 
     crew.listener._executor.submit.assert_called()
     crew.listener.statsd.increment.assert_called()
@@ -160,9 +170,9 @@ def test_exception_in_listener_threadpool(
     )
 
 
-def test_crew_stops_successfully(crew, timeout=1):
+def test_crew_stops_successfully(crew):
     crew.start()
-    crew.stop(timeout=timeout)
+    crew.stop(timeout=STOP_CREW_TIMEOUT)
 
 
 def test_bulk_listener_timeout_warning(
