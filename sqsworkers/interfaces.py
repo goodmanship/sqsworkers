@@ -4,12 +4,8 @@ from abc import ABCMeta, abstractmethod
 
 class CrewInterface(metaclass=ABCMeta):
     """
-    Any class with an __init__ and start method will be a subclass of this interface.
+    Any class with a start method will be a subclass of this interface.
     """
-
-    @abstractmethod
-    def __init__(self, MessageProcessor, *args, **kwargs):
-        raise NotImplementedError
 
     @abstractmethod
     def start(self):
@@ -36,10 +32,6 @@ class StatsDInterface(metaclass=ABCMeta):
     """
     Defines the interface for the statsd client.
     """
-
-    @abstractmethod
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError
 
     @abstractmethod
     def increment(self, *args, **kwargs):
