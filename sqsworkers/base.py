@@ -10,7 +10,6 @@ from typing import *
 
 import boto3
 from boto3.resources.base import ServiceResource
-from dataclasses import asdict
 
 from sqsworkers import MessageMetadata
 from sqsworkers import interfaces
@@ -194,12 +193,16 @@ class BaseListener(interfaces.CrewInterface):
 
             if messages:
 
+                metadatas = [MessageMetadata(m) for m in messages]
+
                 self.logger.info(
-                    f"processing the following {len(messages)} messages: {messages}"
+                    f"processing the following {len(messages)} messages: {metadatas}"
                 )
 
                 for message in messages:
-                    self.logger.info(f"processing message: {message}")
+                    self.logger.info(
+                        f"processing message: {MessageMetadata(message)}"
+                    )
 
                     task: futures.Future = self._executor.submit(
                         self.message_processor(message).start
@@ -228,7 +231,7 @@ class BaseListener(interfaces.CrewInterface):
 
             self.logger.error(
                 "{exception} raised on the following message: {message}".format(
-                    exception=exception, message=asdict(metadata)
+                    exception=repr(exception), message=metadata
                 )
             )
 

@@ -6,8 +6,6 @@ from functools import partial
 from threading import Thread
 from typing import *
 
-from dataclasses import asdict
-
 from sqsworkers import MessageMetadata
 from sqsworkers import interfaces
 from sqsworkers.base import BaseListener
@@ -116,8 +114,10 @@ class BulkListener(BaseListener):
 
             if messages:
 
+                metadatas = [MessageMetadata(m) for m in messages]
+
                 self.logger.info(
-                    f"processing the following {len(messages)} messages in bulk: {messages}"
+                    f"processing the following {len(messages)} messages in bulk: {metadatas}"
                 )
 
                 task: futures.Future = self._executor.submit(
@@ -148,7 +148,7 @@ class BulkListener(BaseListener):
 
             self.logger.error(
                 "{exception} raised on the following group of messages: {messages}".format(
-                    exception=exception, messages=[asdict(m) for m in metadata]
+                    exception=repr(exception), messages=metadata
                 )
             )
 
