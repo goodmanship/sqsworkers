@@ -27,9 +27,10 @@ def messages(message, length=10):
 
 @pytest.fixture(params=[None, Exception("derp")])
 def future(request):
+    exception = request.param
+
     with mock.patch("concurrent.futures.Future", autospec=True) as Future:
         future = Future()
-        exception = request.param
         future.exception.return_value = exception
         future.add_done_callback.side_effect = lambda callable: callable(
             future
