@@ -14,7 +14,7 @@ from sqsworkers.base import BaseListener
 class Crew(interfaces.CrewInterface):
     """Provide the top-level interface to Crew."""
 
-    def __init__(self, *args, bulk_mode=False, **kwargs):
+    def __init__(self, *args, listener=None, bulk_mode=False, **kwargs):
         """Instantiate a daemon thread with either a regular or bulk listener."""
         logging.info(
             "instantiating background thread with {} listener".format(
@@ -26,7 +26,7 @@ class Crew(interfaces.CrewInterface):
             BaseListener(*args, **kwargs)
             if not bulk_mode
             else BulkListener(*args, **kwargs)
-        )
+        ) if listener is None else listener
 
         self._thread = Thread(
             name=self.listener.name, target=self.listener.start, daemon=True

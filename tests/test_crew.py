@@ -34,7 +34,8 @@ def executor_future(request, message):
     ) as Future:
         executor = ThreadPoolExecutor()
         future = Future()
-        future.exception.return_value = request.param
+        exception = request.param
+        future.exception.return_value = exception
         executor.submit.return_value = future
         future.add_done_callback.side_effect = lambda callable: callable(
             future
@@ -79,7 +80,7 @@ def message_processor():
 
 
 @pytest.fixture
-def non_bulk_crew(
+def base_listener(
     sqs_session,
     message_processor,
     sqs_resource,
@@ -88,7 +89,8 @@ def non_bulk_crew(
     executor_future,
 ):
     ex, _ = executor_future
-    return Crew(
+
+    return BaseListener(
         sqs_session=sqs_session,
         MessageProcessor=message_processor,
         sqs_resource=sqs_resource,
@@ -100,7 +102,7 @@ def non_bulk_crew(
 
 
 @pytest.fixture
-def bulk_crew(
+def bulk_listener(
     sqs_session,
     message_processor,
     sqs_resource,
@@ -109,41 +111,28 @@ def bulk_crew(
     executor_future,
 ):
     ex, _ = executor_future
-    return Crew(
+
+    return BulkListener(
         sqs_session=sqs_session,
-        sqs_resource=sqs_resource,
         MessageProcessor=message_processor,
+        sqs_resource=sqs_resource,
         statsd=statsd,
         sentry=sentry,
-        bulk_mode=True,
         executor=ex,
         daemon=False,
     )
 
 
-@pytest.fixture(params=["bulk_crew", "non_bulk_crew"])
-def crew(request, non_bulk_crew, bulk_crew):
-    """Returns a bulk or non-bulk crew based on the request param."""
-    return locals().get(request.param)
+@pytest.fixture(params=["bulk_mode", ""])
+def crew(request, base_listener, bulk_listener):
+    bulk_mode = request.param == "bulk_mode"
+    listener = base_listener if not bulk_mode else bulk_listener
+    return Crew(listener=listener)
 
 
 @pytest.fixture
 def listener(crew):
     return crew.listener
-
-
-def test_crew_instantiation(non_bulk_crew, bulk_crew):
-
-    assert isinstance(non_bulk_crew.listener, BaseListener)
-    assert not isinstance(non_bulk_crew, BulkListener)
-
-    assert isinstance(bulk_crew.listener, BulkListener)
-
-    non_bulk_crew.start()
-
-    non_bulk_crew.listener._executor.submit.assert_called()
-
-    non_bulk_crew.listener.statsd.increment.assert_called()
 
 
 def test_crew_start(crew, executor_future):
@@ -182,19 +171,21 @@ def test_timeout_warning(sqs_session, sqs_resource, message_processor, caplog):
     )
 
 
-def test_exception(crew, message, messages, executor_future, caplog):
+def test_exception(listener, message, messages, executor_future, caplog):
     _, future = executor_future
 
     future.exception.return_value = Exception("derp")
 
-    bulk_mode = isinstance(crew.listener, BulkListener)
+    bulk_mode = isinstance(listener, BulkListener)
 
-    crew.listener._task_complete(future, (messages if bulk_mode else message))
+    listener._task_complete(future, (messages if bulk_mode else message))
 
     assert any("Exception('derp',) raised" in r.msg for r in caplog.records)
 
-    crew.listener.statsd.increment.assert_called_with(
-        "process.record.failure", 10 if bulk_mode else 1, tags=[]
+    message_count = 1 if not bulk_mode else len(messages)
+
+    listener.statsd.increment.assert_called_with(
+        "process.record.failure", message_count, tags=[]
     )
 
 
