@@ -128,7 +128,7 @@ def listener(crew):
     return crew.listener
 
 
-def test_crew_start(crew, future):
+def test_crew_starts_and_executes_successfully(crew, future):
 
     crew.start()
 
@@ -141,29 +141,9 @@ def test_crew_start(crew, future):
         crew.listener.queue.delete_messages.assert_called()
 
 
-def test_crew_stop(crew, timeout=1):
-    crew.start()
-    crew.stop(timeout=timeout)
-
-
-def test_timeout_warning(sqs_session, sqs_resource, message_processor, caplog):
-    Crew(
-        sqs_session=sqs_session,
-        sqs_resource=sqs_resource,
-        message_processor=message_processor,
-        bulk_mode=True,
-        wait_time=2,
-        timeout=1,
-        minimum_messages=1,
-    )
-
-    assert any(
-        "wait time (2) is longer than the timeout (1)" in record.msg
-        for record in caplog.records
-    )
-
-
-def test_exception(listener, message, messages, future, caplog):
+def test_exception_in_listener_threadpool(
+    listener, message, messages, future, caplog
+):
 
     future.exception.return_value = Exception("derp")
 
@@ -177,6 +157,30 @@ def test_exception(listener, message, messages, future, caplog):
 
     listener.statsd.increment.assert_called_with(
         "process.record.failure", message_count, tags=[]
+    )
+
+
+def test_crew_stops_successfully(crew, timeout=1):
+    crew.start()
+    crew.stop(timeout=timeout)
+
+
+def test_bulk_listener_timeout_warning(
+    sqs_session, sqs_resource, message_processor, caplog
+):
+    Crew(
+        sqs_session=sqs_session,
+        sqs_resource=sqs_resource,
+        message_processor=message_processor,
+        bulk_mode=True,
+        wait_time=2,
+        timeout=1,
+        minimum_messages=1,
+    )
+
+    assert any(
+        "wait time (2) is longer than the timeout (1)" in record.msg
+        for record in caplog.records
     )
 
 
