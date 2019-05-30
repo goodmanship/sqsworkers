@@ -48,11 +48,6 @@ def executor(future):
         yield executor
 
 
-# @pytest.fixture(params=[mock.MagicMock(), None])
-# def sentry(request):
-#     return request.param
-
-
 @pytest.fixture
 def statsd():
     return mock.Mock(spec=StatsDBase)
