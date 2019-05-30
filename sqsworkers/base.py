@@ -108,9 +108,11 @@ class BaseListener(interfaces.CrewInterface):
             wait_time: passed to self.queue.receive_messages(WaitTimeSeconds=...)
             polling_interval: How long to wait in between polls on sqs
         """
-        assert bool(MessageProcessor) ^ bool(
-            message_processor
-        ), f"message_processor {message_processor} and MessageProcessor {MessageProcessor} arguments are mutually exclusive"
+        xor_msg_proc = bool(MessageProcessor) ^ bool(message_processor)
+
+        xor_error_msg = f"message_processor and MessageProcessor arguments are mutually exclusive"
+
+        assert xor_msg_proc, xor_error_msg
 
         message_processor = message_processor or MessageProcessor
 
@@ -131,12 +133,7 @@ class BaseListener(interfaces.CrewInterface):
                 DeprecationWarning,
             )
 
-        deprecated = [
-            "workers",
-            "supervisor",
-            "exception_handler_function",
-            "bulk_mode",
-        ]
+        deprecated = ["workers", "supervisor", "exception_handler_function"]
 
         for d in deprecated:
             if locals().get(d) is not None:
