@@ -189,7 +189,6 @@ class BaseListener(interfaces.CrewInterface):
         ), f"{statsd.__class__} does not conform to {interfaces.StatsDInterface.__name__}"
 
         self.statsd = statsd
-
         self.sentry = sentry
         self.max_number_of_messages = max_number_of_messages
         self.wait_time = wait_time
@@ -237,15 +236,21 @@ class BaseListener(interfaces.CrewInterface):
         exception = f.exception()
 
         if exception is not None:
+
             metadata = MessageMetadata(message)
+
             self.logger.error(
                 "{exception} raised on the following message: {message}".format(
                     exception=exception, message=asdict(metadata)
                 )
             )
+
             self.statsd.increment("process.record.failure", 1, tags=[])
+
         else:
+
             self.statsd.increment("process.record.success", 1, tags=[])
+
             self.queue.delete_messages(
                 Entries=[
                     {

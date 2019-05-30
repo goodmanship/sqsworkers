@@ -23,11 +23,13 @@ class Crew(interfaces.CrewInterface):
                 "non-bulk" if not bulk_mode else "bulk"
             )
         )
+
         self.listener = (
             BaseListener(*args, **kwargs)
             if not bulk_mode
             else BulkListener(*args, **kwargs)
         )
+
         self._thread = Thread(
             name=self.listener.name, target=self.listener.start, daemon=True
         )
@@ -67,6 +69,7 @@ class BulkListener(BaseListener):
                 that number of messages
         """
         super().__init__(*args, **kwargs)
+
         self.minimum_messages = minimum_messages
         self.timeout = timeout
 
@@ -79,25 +82,31 @@ class BulkListener(BaseListener):
 
     def start(self):
         while True:
+
             if self.minimum_messages:
                 messages = []
                 start = time.perf_counter()
+
                 while (
                     len(messages) < self.minimum_messages
                     and (time.perf_counter() - start) < self.timeout
                 ):
+
                     self.logger.info(
                         "length of messages ({}) below minimum set to pass to message processor ({}). polling".format(
                             len(messages), self.minimum_messages
                         )
                     )
+
                     messages += self.queue.receive_messages(
                         AttributeNames=["All"],
                         MessageAttributeNames=["All"],
                         MaxNumberOfMessages=self.max_number_of_messages,
                         WaitTimeSeconds=self.wait_time,
                     )
+
             else:
+
                 messages = self.queue.receive_messages(
                     AttributeNames=["All"],
                     MessageAttributeNames=["All"],
@@ -106,6 +115,7 @@ class BulkListener(BaseListener):
                 )
 
             if messages:
+
                 self.logger.info(
                     f"processing the following {len(messages)} messages in bulk: {messages}"
                 )
@@ -135,18 +145,23 @@ class BulkListener(BaseListener):
             metadata: List[MessageMetadata] = [
                 MessageMetadata(m) for m in messages
             ]
+
             self.logger.error(
                 "{exception} raised on the following group of messages: {messages}".format(
                     exception=exception, messages=[asdict(m) for m in metadata]
                 )
             )
+
             self.statsd.increment(
                 "process.record.failure", len(messages), tags=[]
             )
+
         else:
+
             self.statsd.increment(
                 "process.record.success", len(messages), tags=[]
             )
+
             # make sure we don't try to delete more than 10 messages
             # at a time or we'll get an error from boto3
             while messages:

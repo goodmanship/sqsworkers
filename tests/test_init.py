@@ -5,6 +5,7 @@ import json
 
 def test_metadata():
     event_id, type_, schema = 0, "type", "schema"
+
     message = SimpleNamespace(
         body=json.dumps({"eventId": event_id, "type": type_, "schema": schema})
     )

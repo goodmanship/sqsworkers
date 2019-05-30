@@ -87,7 +87,7 @@ def non_bulk_crew(
     sentry,
     executor_future,
 ):
-    ex, f = executor_future
+    ex, _ = executor_future
     return Crew(
         sqs_session=sqs_session,
         MessageProcessor=message_processor,
@@ -108,7 +108,7 @@ def bulk_crew(
     sentry,
     executor_future,
 ):
-    ex, f = executor_future
+    ex, _ = executor_future
     return Crew(
         sqs_session=sqs_session,
         sqs_resource=sqs_resource,
