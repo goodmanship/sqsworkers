@@ -26,21 +26,25 @@ def messages(message, length=10):
 
 
 @pytest.fixture(params=[None, Exception("derp")])
-def executor_future(request, message):
-    with mock.patch(
-        "concurrent.futures.ThreadPoolExecutor", autospec=True
-    ) as ThreadPoolExecutor, mock.patch(
-        "concurrent.futures.Future", autospec=True
-    ) as Future:
-        executor = ThreadPoolExecutor()
+def future(request):
+    with mock.patch("concurrent.futures.Future", autospec=True) as Future:
         future = Future()
         exception = request.param
         future.exception.return_value = exception
-        executor.submit.return_value = future
         future.add_done_callback.side_effect = lambda callable: callable(
             future
         )
-        yield executor, future
+        yield future
+
+
+@pytest.fixture
+def executor(future):
+    with mock.patch(
+        "concurrent.futures.ThreadPoolExecutor", autospec=True
+    ) as ThreadPoolExecutor:
+        executor = ThreadPoolExecutor()
+        executor.submit.return_value = future
+        yield executor
 
 
 @pytest.fixture
@@ -81,14 +85,8 @@ def message_processor():
 
 @pytest.fixture
 def base_listener(
-    sqs_session,
-    message_processor,
-    sqs_resource,
-    statsd,
-    sentry,
-    executor_future,
+    sqs_session, message_processor, sqs_resource, statsd, sentry, executor
 ):
-    ex, _ = executor_future
 
     return BaseListener(
         sqs_session=sqs_session,
@@ -96,21 +94,15 @@ def base_listener(
         sqs_resource=sqs_resource,
         statsd=statsd,
         sentry=sentry,
-        executor=ex,
+        executor=executor,
         daemon=False,
     )
 
 
 @pytest.fixture
 def bulk_listener(
-    sqs_session,
-    message_processor,
-    sqs_resource,
-    statsd,
-    sentry,
-    executor_future,
+    sqs_session, message_processor, sqs_resource, statsd, sentry, executor
 ):
-    ex, _ = executor_future
 
     return BulkListener(
         sqs_session=sqs_session,
@@ -118,7 +110,7 @@ def bulk_listener(
         sqs_resource=sqs_resource,
         statsd=statsd,
         sentry=sentry,
-        executor=ex,
+        executor=executor,
         daemon=False,
     )
 
@@ -135,8 +127,7 @@ def listener(crew):
     return crew.listener
 
 
-def test_crew_start(crew, executor_future):
-    _, future = executor_future
+def test_crew_start(crew, future):
 
     crew.start()
 
@@ -171,8 +162,7 @@ def test_timeout_warning(sqs_session, sqs_resource, message_processor, caplog):
     )
 
 
-def test_exception(listener, message, messages, executor_future, caplog):
-    _, future = executor_future
+def test_exception(listener, message, messages, future, caplog):
 
     future.exception.return_value = Exception("derp")
 
