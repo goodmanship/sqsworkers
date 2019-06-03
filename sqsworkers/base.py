@@ -3,6 +3,7 @@ import itertools as it
 import logging
 import os
 import time
+import traceback
 import warnings
 from concurrent import futures
 from functools import partial, wraps
@@ -231,14 +232,15 @@ class BaseListener(interfaces.CrewInterface):
 
         metadata = MessageMetadata(message) if metadata is None else metadata
 
-        exception = f.exception()
+        exception: Optional[Exception] = f.exception()
 
         if exception is not None:
 
             self.logger.error(
                 "failed processing {message} with the following exception: {exception}".format(
                     exception=repr(exception), message=metadata
-                )
+                ),
+                exc_info=exception,
             )
 
             self.statsd.increment("process.record.failure", 1, tags=[])

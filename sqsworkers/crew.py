@@ -163,7 +163,8 @@ class BulkListener(BaseListener):
             self.logger.error(
                 "failed processing {messages} with the following exception: {exception}".format(
                     exception=repr(exception), messages=metadata
-                )
+                ),
+                exc_info=exception,
             )
 
             self.statsd.increment(
