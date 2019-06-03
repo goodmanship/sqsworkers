@@ -146,7 +146,9 @@ def test_exception_in_listener_threadpool(
 
     listener._task_complete(future, (messages if bulk_mode else message))
 
-    assert any("Exception('derp',) raised" in r.msg for r in caplog.records)
+    assert any(
+        "exception: Exception('derp',)" in r.msg for r in caplog.records
+    )
 
     message_count = 1 if not bulk_mode else len(messages)
 

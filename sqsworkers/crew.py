@@ -118,10 +118,10 @@ class BulkListener(BaseListener):
 
             if messages:
 
-                metadatas = [MessageMetadata(m) for m in messages]
+                metadata = [MessageMetadata(m) for m in messages]
 
                 self.logger.info(
-                    f"processing the following {len(messages)} messages in bulk: {metadatas}"
+                    f"processing the following {len(messages)} messages in bulk: {metadata}"
                 )
 
                 task: futures.Future = self._executor.submit(
@@ -129,7 +129,11 @@ class BulkListener(BaseListener):
                 )
 
                 task.add_done_callback(
-                    partial(self._task_complete, messages=messages)
+                    partial(
+                        self._task_complete,
+                        messages=messages,
+                        metadata=metadata,
+                    )
                 )
 
                 self.statsd.increment(
@@ -138,20 +142,26 @@ class BulkListener(BaseListener):
 
             time.sleep(self.polling_interval)
 
-    def _task_complete(self, f: futures.Future, messages: Iterable[Any]):
+    def _task_complete(
+        self,
+        f: futures.Future,
+        messages: Iterable[Any],
+        metadata=Optional[List[MessageMetadata]],
+    ):
         """Clean up after task and do any necessary logging."""
 
         messages = list(messages)
 
+        metadata: List[MessageMetadata] = [
+            MessageMetadata(m) for m in messages
+        ] if metadata is None else metadata
+
         exception = f.exception()
 
         if exception is not None:
-            metadata: List[MessageMetadata] = [
-                MessageMetadata(m) for m in messages
-            ]
 
             self.logger.error(
-                "{exception} raised on the following group of messages: {messages}".format(
+                "failed processing {messages} with the following exception: {exception}".format(
                     exception=repr(exception), messages=metadata
                 )
             )
@@ -161,6 +171,10 @@ class BulkListener(BaseListener):
             )
 
         else:
+
+            self.logger.info(
+                "successfully processed {messages}".format(messages=metadata)
+            )
 
             self.statsd.increment(
                 "process.record.success", len(messages), tags=[]

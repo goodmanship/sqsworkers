@@ -197,9 +197,9 @@ class BaseListener(interfaces.CrewInterface):
                 )
 
                 for message in messages:
-                    self.logger.info(
-                        f"processing message: {MessageMetadata(message)}"
-                    )
+                    metadata = MessageMetadata(message)
+
+                    self.logger.info(f"processing message: {metadata}")
 
                     task: futures.Future = self._executor.submit(
                         self.message_processor(message).start
@@ -208,26 +208,35 @@ class BaseListener(interfaces.CrewInterface):
                     self.logger.info(f"processing task: {task}")
 
                     task.add_done_callback(
-                        partial(self._task_complete, message=message)
+                        partial(
+                            self._task_complete,
+                            message=message,
+                            metadata=metadata,
+                        )
                     )
 
                     self.statsd.increment("process.record.start", 1, tags=[])
 
             time.sleep(self.polling_interval)
 
-    def _task_complete(self, f: futures.Future, message: Any):
+    def _task_complete(
+        self,
+        f: futures.Future,
+        message: Any,
+        metadata: Optional[MessageMetadata] = None,
+    ):
         """
         Clean up after the task and do any necessary logging.
         """
+
+        metadata = MessageMetadata(message) if metadata is None else metadata
 
         exception = f.exception()
 
         if exception is not None:
 
-            metadata = MessageMetadata(message)
-
             self.logger.error(
-                "{exception} raised on the following message: {message}".format(
+                "failed processing {message} with the following exception: {exception}".format(
                     exception=repr(exception), message=metadata
                 )
             )
@@ -235,6 +244,10 @@ class BaseListener(interfaces.CrewInterface):
             self.statsd.increment("process.record.failure", 1, tags=[])
 
         else:
+
+            self.logger.info(
+                "successfully processed {message}".format(message=metadata)
+            )
 
             self.statsd.increment("process.record.success", 1, tags=[])
 
