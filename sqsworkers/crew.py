@@ -194,7 +194,7 @@ class BulkListener(BaseListener):
             )
 
             self.statsd.increment(
-                "process.record.failure", len(messages), tags=[]
+                "process.record.failure", len(result.failed), tags=[]
             )
 
             # make sure we don't try to delete more than 10 messages
