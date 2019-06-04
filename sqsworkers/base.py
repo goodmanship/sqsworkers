@@ -3,7 +3,6 @@ import itertools as it
 import logging
 import os
 import time
-import traceback
 import warnings
 from concurrent import futures
 from functools import partial, wraps
@@ -88,6 +87,7 @@ class BaseListener(interfaces.CrewInterface):
         max_number_of_messages: int = 1,
         wait_time: int = 20,
         polling_interval: Union[int, float] = 1,
+        log_level: int = logging.INFO,
         **kwargs,
     ):
         """
@@ -108,6 +108,7 @@ class BaseListener(interfaces.CrewInterface):
             max_number_of_messages: passed to self.queue.receive_messages(MaxNumberOfMessages=...)
             wait_time: passed to self.queue.receive_messages(WaitTimeSeconds=...)
             polling_interval: How long to wait in between polls on sqs
+            log_level: the logging level for this instance's logger
         """
         xor_msg_proc = bool(MessageProcessor) ^ bool(message_processor)
 
@@ -165,6 +166,8 @@ class BaseListener(interfaces.CrewInterface):
             (logging.getLogger() if logger is None else logger),
             extra={"extra": {"crew.name": self.name}},
         )
+
+        self.logger.setLevel(log_level)
 
         statsd = StatsDBase(logger=logger) if statsd is None else statsd
 
