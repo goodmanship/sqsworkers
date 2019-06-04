@@ -25,16 +25,23 @@ def messages(message, length=10):
     return [message] * length
 
 
-@pytest.fixture(params=[None, Exception("derp")])
-def future(request):
-    exception = request.param
+@pytest.fixture(params=["message", "messages", Exception("derp")])
+def future(request, message, messages):
+    # exception = request.param
 
     with mock.patch("concurrent.futures.Future", autospec=True) as Future:
         future = Future()
+        exception = (
+            request.param if isinstance(request.param, Exception) else None
+        )
         future.exception.return_value = exception
         future.add_done_callback.side_effect = lambda callable: callable(
             future
         )
+        if request.param == "messages":
+            future.result.return_value = SimpleNamespace(
+                succeeded=[message] * 2, failed=[message] * 3
+            )
         yield future
 
 

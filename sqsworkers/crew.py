@@ -173,19 +173,40 @@ class BulkListener(BaseListener):
 
         else:
 
+            result = f.result()
+
             self.logger.info(
-                "successfully processed {messages}".format(messages=metadata)
+                "successfully processed {} messages: {metadata}".format(
+                    len(result.succeeded),
+                    metadata=[MessageMetadata(m) for m in result.succeeded],
+                )
             )
 
             self.statsd.increment(
-                "process.record.success", len(messages), tags=[]
+                "process.record.success", len(result.succeeded), tags=[]
+            )
+
+            self.logger.info(
+                "failed to process {} messages: {metadata}".format(
+                    len(result.failed),
+                    metadata=[MessageMetadata(m) for m in result.failed],
+                )
+            )
+
+            self.statsd.increment(
+                "process.record.failure", len(messages), tags=[]
             )
 
             # make sure we don't try to delete more than 10 messages
             # at a time or we'll get an error from boto3
-            while messages:
 
-                messages = iter(messages)
+            successfully_processed_messages = result.succeeded
+
+            while successfully_processed_messages:
+
+                successfully_processed_messages = iter(
+                    successfully_processed_messages
+                )
 
                 self.queue.delete_messages(
                     Entries=[
@@ -193,8 +214,12 @@ class BulkListener(BaseListener):
                             "Id": message.message_id,
                             "ReceiptHandle": message.receipt_handle,
                         }
-                        for message in it.islice(messages, 10)
+                        for message in it.islice(
+                            successfully_processed_messages, 10
+                        )
                     ]
                 )
 
-                messages = list(messages)
+                successfully_processed_messages = list(
+                    successfully_processed_messages
+                )

@@ -75,7 +75,7 @@ class BaseListener(interfaces.CrewInterface):
         workers=None,
         supervisor=None,
         exception_handler_function=None,
-        MessageProcessor: Optional[Callable[[Any], Any]] = None,
+        MessageProcessor: Optional[Callable[[Any], Optional[Any]]] = None,
         # end of deprecated arguments
         message_processor: Optional[Callable[[Any], Any]] = None,
         logger: Optional[logging.Logger] = None,
