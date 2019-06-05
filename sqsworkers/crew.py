@@ -186,7 +186,7 @@ class BulkListener(BaseListener):
                 "process.record.success", len(result.succeeded), tags=[]
             )
 
-            self.logger.info(
+            self.logger.error(
                 "failed to process {} messages: {metadata}".format(
                     len(result.failed),
                     metadata=[MessageMetadata(m) for m in result.failed],
