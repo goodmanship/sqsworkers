@@ -7,21 +7,6 @@ usage since a good portion of time is spent requesting messages and
 polling the SQS queue. It can be used similarly to an AWS Lambda which
 cannot (as of right now) be used in conjunction with SQS.
 
-Versions
-========
-
-::
-    0.1.13 - support bulk message processor
-    0.1.12 - adding exception handler
-    0.1.11 - customize queue polling
-    0.1.10 - increase to max wait time for polling
-    0.1.9 - get messageattributenames 
-    0.1.8 - tweaks for public pypi
-    0.1.7 - bugfix for thread naming
-    0.1.6 - bugfix for emptry sentry client
-    0.1.5 - bugfix for pip install
-    0.1.4 - support for elasticmq
-    0.1.2 - initial version
 
 Usage
 =====
@@ -30,19 +15,26 @@ A basic call to SQS Workers would look like this:
 
 .. code:: python
 
-    options = {
-        'sqs_session': sqs_session,
-        'queue_name': 'ddev-test-queue',
-        'sqs_resource': sqs_resource,
-        'MessageProcessor': MsgProcessor,
-        'logger': msg_logger,
-        'statsd': statsd,
-        'sentry': None,
-        'worker_limit': 1
-      }
-      c = Crew(**options)
+    from sqsworkers import MessageMetadata
+    from sqsworkers.crew import Crew
 
-You can see a simple demo app `here <demo/basic_message_processor.py>`__
+
+    class MyMessageProcessor:
+        def __init__(self, msg):
+            self.metadata = MessageMetadata(msg)
+
+        def start(self):
+            print(f"metadata: {self.metadata}")
+
+    crew = Crew(
+        sqs_session=my_session,
+        queue_name=my_queue_name,
+        message_processor=MyMessageProcessor
+    )
+
+    crew.start()
+
+The `tests <tests/test_crew.py>`__ should be informative
 
 Installation
 ============
@@ -60,11 +52,17 @@ And then install using pip ``pip install -r requirements.txt``
 Tests
 =====
 
-Make sure tests pass: ``pytest tests/test_crew.py``
-Note: Because of timing/queue cleanup issues (relating to the working of SQS), the tests
-involving use of real aws may not succeed consistently. Increasing the wait time before
-the asserts will improve the chances of having the tests pass. Another way is to specify
-a quicker visibility timeout for the messages in the queue
+Ensure tests pass
+
+::
+
+    git clone https://github.com/goodmanship/sqsworkers
+    cd sqsworkers
+    python3 -m venv venv
+    . venv/bin/activate
+    pip install -e .[dev]
+    pytest --cov sqsworkers --mypy --black tests/
+
 
 Contributors
 ============
@@ -96,8 +94,24 @@ individual CLA is for those contributing as an individual.
 -  `CLA for
    individuals <https://na2.docusign.net/Member/PowerFormSigning.aspx?PowerFormId=3f94fbdc-2fbe-46ac-b14c-5d152700ae5d>`__
 
+Versions
+========
+
+- 0.2.0 - rewrite implemention on top of concurrent.futures; adds tests
+- 0.1.13 - support bulk message processor
+- 0.1.12 - adding exception handler
+- 0.1.11 - customize queue polling
+- 0.1.10 - increase to max wait time for polling
+- 0.1.9 - get messageattributenames
+- 0.1.8 - tweaks for public pypi
+- 0.1.7 - bugfix for thread naming
+- 0.1.6 - bugfix for emptry sentry client
+- 0.1.5 - bugfix for pip install
+- 0.1.4 - support for elasticmq
+- 0.1.2 - initial version
+
 License
 =======
 
-Copyright (c) 2017 Atlassian and others. Apache 2.0 licensed, see
+Copyright (c) 2019 Atlassian and others. Apache 2.0 licensed, see
 `LICENSE <LICENSE>`__ file.
