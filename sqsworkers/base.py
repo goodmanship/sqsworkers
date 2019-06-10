@@ -80,7 +80,7 @@ class BaseListener(interfaces.CrewInterface):
         name: Optional[str] = None,
         statsd=None,
         sentry=None,
-        max_number_of_messages: int = 1,
+        max_number_of_messages: int = 10,
         wait_time: int = 20,
         polling_interval: Union[int, float] = 0,
         log_level: Optional[int] = None,
