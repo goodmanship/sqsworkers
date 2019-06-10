@@ -82,7 +82,7 @@ class BaseListener(interfaces.CrewInterface):
         sentry=None,
         max_number_of_messages: int = 1,
         wait_time: int = 20,
-        polling_interval: Union[int, float] = 0.01,
+        polling_interval: Union[int, float] = 0,
         log_level: Optional[int] = None,
         **kwargs,
     ):
