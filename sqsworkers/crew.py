@@ -75,7 +75,7 @@ class BulkListener(BaseListener):
     def __init__(
         self,
         *args,
-        minimum_messages: Optional[int] = 10,
+        minimum_messages: Optional[int] = None,
         max_number_of_messages: Optional[int] = None,
         timeout: int = 30,
         **kwargs,
