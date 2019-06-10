@@ -20,9 +20,7 @@ class BaseListener(interfaces.CrewInterface):
     This class polls on an sqs queue, delegating the work to a message processor that runs in a threadpool.
     """
 
-    def __new__(
-        cls, *args, worker_limit: Optional[int] = None, executor=None, **kwargs
-    ):
+    def __new__(cls, *args, executor=None, **kwargs):
         """
         Ensures we only create one threadpool executor per class.
 
@@ -52,9 +50,7 @@ class BaseListener(interfaces.CrewInterface):
 
         if not hasattr(cls, "_executor"):
             cls._executor = (
-                futures.ThreadPoolExecutor(max_workers=worker_limit)
-                if executor is None
-                else executor
+                futures.ThreadPoolExecutor() if executor is None else executor
             )
 
             atexit.register(cls._executor.shutdown)
@@ -86,8 +82,8 @@ class BaseListener(interfaces.CrewInterface):
         sentry=None,
         max_number_of_messages: int = 1,
         wait_time: int = 20,
-        polling_interval: Union[int, float] = 1,
-        log_level: int = logging.INFO,
+        polling_interval: Union[int, float] = 0.01,
+        log_level: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -160,6 +156,12 @@ class BaseListener(interfaces.CrewInterface):
 
         self.name = name or "crew-{}-{}-{}".format(
             os.getpid(), (queue_name or next(self._count)), time.time()
+        )
+
+        log_level = (
+            log_level
+            if log_level is not None
+            else (logging.INFO if logger is None else logger.level)
         )
 
         self.logger = logging.LoggerAdapter(

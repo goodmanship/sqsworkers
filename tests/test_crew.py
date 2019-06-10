@@ -10,6 +10,16 @@ from sqsworkers.interfaces import CrewInterface
 
 
 @pytest.fixture
+def polling_interval():
+    return 0.1
+
+
+@pytest.fixture
+def timeout():
+    return 0.1
+
+
+@pytest.fixture
 def message():
     return SimpleNamespace(
         message_id="message_id",
@@ -27,7 +37,6 @@ def messages(message, length=10):
 
 @pytest.fixture(params=["message", "messages", Exception("derp")])
 def future(request, message, messages):
-    # exception = request.param
 
     with mock.patch("concurrent.futures.Future", autospec=True) as Future:
         future = Future()
@@ -88,7 +97,12 @@ def message_processor():
 
 @pytest.fixture
 def base_listener(
-    sqs_session, message_processor, sqs_resource, statsd, executor
+    sqs_session,
+    message_processor,
+    sqs_resource,
+    statsd,
+    executor,
+    polling_interval,
 ):
 
     return BaseListener(
@@ -97,13 +111,19 @@ def base_listener(
         sqs_resource=sqs_resource,
         statsd=statsd,
         executor=executor,
-        daemon=False,
+        polling_interval=polling_interval,
     )
 
 
 @pytest.fixture(params=[10, None])
 def bulk_listener(
-    request, sqs_session, message_processor, sqs_resource, statsd, executor
+    request,
+    sqs_session,
+    message_processor,
+    sqs_resource,
+    statsd,
+    executor,
+    polling_interval,
 ):
     minimum_messages = request.param
 
@@ -113,34 +133,39 @@ def bulk_listener(
         sqs_resource=sqs_resource,
         statsd=statsd,
         executor=executor,
-        daemon=False,
         minimum_messages=minimum_messages,
+        polling_interval=polling_interval,
     )
 
 
 @pytest.fixture(params=["bulk_mode", ""])
-def crew(request, base_listener, bulk_listener):
+def listener(request, base_listener, bulk_listener):
     bulk_mode = request.param == "bulk_mode"
-    listener = base_listener if not bulk_mode else bulk_listener
-    return Crew(listener=listener)
+    return base_listener if not bulk_mode else bulk_listener
 
 
 @pytest.fixture
-def listener(crew):
-    return crew.listener
+def listeners(listener, length=2):
+    return [listener] * length
 
 
-def test_crew_starts_and_executes_successfully(crew, future):
+@pytest.fixture
+def crew(listeners):
+    return Crew(listeners=listeners)
+
+
+def test_crew_starts_and_executes_successfully(
+    crew, future, statsd, sqs_resource, timeout
+):
 
     crew.start()
 
-    crew.stop()
+    crew.stop(timeout=timeout)
 
-    crew.listener._executor.submit.assert_called()
-    crew.listener.statsd.increment.assert_called()
+    statsd.increment.assert_called()
 
     if future.exception() is not None:
-        crew.listener.queue.delete_messages.assert_called()
+        sqs_resource.delete_messages.assert_called()
 
 
 def test_exception_in_listener_threadpool(
