@@ -14,7 +14,15 @@ from sqsworkers.base import BaseListener
 class Crew(interfaces.CrewInterface):
     """Provide the top-level interface to Crew."""
 
-    def __init__(self, *args, listener=None, bulk_mode=False, **kwargs):
+    def __init__(
+        self,
+        *args,
+        worker_limit: int = 32,
+        listeners=None,
+        bulk_mode=False,
+        executor=None,
+        **kwargs,
+    ):
         """Instantiate a daemon thread with either a regular or bulk listener."""
         logging.info(
             "instantiating background thread with {} listener".format(
@@ -22,28 +30,36 @@ class Crew(interfaces.CrewInterface):
             )
         )
 
-        self.listener = (
-            (
-                BaseListener(*args, **kwargs)
-                if not bulk_mode
-                else BulkListener(*args, **kwargs)
-            )
-            if listener is None
-            else listener
+        self.executor = executor
+
+        self._listeners = (
+            [
+                (
+                    BaseListener(*args, executor=executor, **kwargs)
+                    if not bulk_mode
+                    else BulkListener(*args, executor=executor, **kwargs)
+                )
+                for _ in range(worker_limit)
+            ]
+            if listeners is None
+            else listeners
         )
 
-        self._thread = Thread(
-            name=self.listener.name, target=self.listener.start, daemon=True
-        )
+        self._daemons = [
+            Thread(name=listener.name, target=listener.start, daemon=True)
+            for listener in self._listeners
+        ]
 
     def start(self):
         """Start listener in background thread."""
         logging.info("starting background listener thread")
-        self._thread.start()
+        for daemon in self._daemons:
+            daemon.start()
 
-    def join(self, timeout=None):
+    def join(self, timeout=0.1):
         logging.info("waiting on background thread to finish")
-        self._thread.join(timeout=timeout)
+        for daemon in self._daemons:
+            daemon.join(timeout=timeout)
 
     def stop(self, timeout=0.1):
         self.join(timeout=timeout)
@@ -59,7 +75,8 @@ class BulkListener(BaseListener):
     def __init__(
         self,
         *args,
-        minimum_messages: Optional[int] = 10,
+        minimum_messages: Optional[int] = None,
+        max_number_of_messages: Optional[int] = None,
         timeout: int = 30,
         **kwargs,
     ):
@@ -69,8 +86,16 @@ class BulkListener(BaseListener):
             minimum_messages: The minimum number of messages we want to pass to the message processor
             timeout: if we set minimum messages, this is how many seconds we'll keep trying to poll on sqs to get
                 that number of messages
+            max_number_of_messages: passed to self.queue.receive_messages(MaxNumberOfMessages=...)
         """
-        super().__init__(*args, **kwargs)
+        if max_number_of_messages is None and minimum_messages is None:
+            max_number_of_messages = 10
+        elif minimum_messages:
+            max_number_of_messages = minimum_messages
+
+        super().__init__(
+            *args, max_number_of_messages=max_number_of_messages, **kwargs
+        )
 
         self.minimum_messages = minimum_messages
         self.timeout = timeout
