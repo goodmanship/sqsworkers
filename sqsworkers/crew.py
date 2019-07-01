@@ -6,6 +6,8 @@ from functools import partial
 from threading import Thread
 from typing import *
 
+import psutil
+
 from sqsworkers import MessageMetadata
 from sqsworkers import interfaces
 from sqsworkers.base import BaseListener
@@ -109,6 +111,13 @@ class BulkListener(BaseListener):
 
     def start(self):
         while True:
+            cpu_percent = psutil.cpu_percent()
+
+            if cpu_percent >= 85:
+                logging.debug(
+                    f"cpu usage at {cpu_percent} -- skipping poll on sqs"
+                )
+                continue
 
             if self.minimum_messages:
                 messages = []

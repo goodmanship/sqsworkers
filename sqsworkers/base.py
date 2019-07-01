@@ -9,6 +9,7 @@ from functools import partial, wraps
 from typing import *
 
 import boto3
+import psutil
 from boto3.resources.base import ServiceResource
 
 from sqsworkers import MessageMetadata
@@ -19,6 +20,10 @@ class BaseListener(interfaces.CrewInterface):
     """
     This class polls on an sqs queue, delegating the work to a message processor that runs in a threadpool.
     """
+
+    # > Warning the first time this function is called with interval = 0.0 or None
+    # it will return a meaningless 0.0 value which you are supposed to ignore.
+    psutil.cpu_percent()
 
     def __new__(cls, *args, executor=None, **kwargs):
         """
@@ -186,6 +191,14 @@ class BaseListener(interfaces.CrewInterface):
     def start(self):
 
         while True:
+
+            cpu_percent = psutil.cpu_percent()
+
+            if cpu_percent >= 85:
+                logging.debug(
+                    f"cpu usage at {cpu_percent} -- skipping poll on sqs"
+                )
+                continue
 
             messages = self.queue.receive_messages(
                 AttributeNames=["All"],
