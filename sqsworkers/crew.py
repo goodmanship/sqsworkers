@@ -111,6 +111,7 @@ class BulkListener(BaseListener):
 
     def start(self):
         while True:
+
             cpu_usage_percent = psutil.cpu_percent()
             memory_usage_percent = psutil.virtual_memory().percent
 

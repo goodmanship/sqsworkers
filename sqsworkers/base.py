@@ -192,11 +192,12 @@ class BaseListener(interfaces.CrewInterface):
 
         while True:
 
-            cpu_percent = psutil.cpu_percent()
+            cpu_usage_percent = psutil.cpu_percent()
+            memory_usage_percent = psutil.virtual_memory().percent
 
-            if cpu_percent >= 85:
+            if cpu_usage_percent >= 85 or memory_usage_percent >= 85:
                 logging.debug(
-                    f"cpu usage at {cpu_percent} -- skipping poll on sqs"
+                    f"(cpu,memory) usage at ({cpu_usage_percent},{memory_usage_percent}) -- skipping poll on sqs"
                 )
                 continue
 
