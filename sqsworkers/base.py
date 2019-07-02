@@ -197,7 +197,9 @@ class BaseListener(interfaces.CrewInterface):
 
             if cpu_usage_percent >= 85 or memory_usage_percent >= 85:
                 logging.debug(
-                    f"(cpu,memory) usage at ({cpu_usage_percent},{memory_usage_percent}) -- skipping poll on sqs"
+                    "(cpu,memory) usage at ({cpu_usage_percent},{memory_usage_percent}) -- skipping poll on sqs".format(
+                        **locals()
+                    )
                 )
                 continue
 
