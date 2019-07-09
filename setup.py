@@ -1,7 +1,7 @@
 import os
 from setuptools import setup, find_packages
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 DEVELOPMENT_REQUIREMENTS = [
     "pytest",
     "coverage",
@@ -27,7 +27,7 @@ setup(
     url="https://github.com/goodmanship/sqsworkers",
     author="Rio Goodman",
     author_email="riogoodman@gmail.com",
-    install_requires=["boto3", "dataclasses"],
+    install_requires=["boto3", "dataclasses", "psutil"],
     extras_require={
         "dev": DEVELOPMENT_REQUIREMENTS,
         "test": DEVELOPMENT_REQUIREMENTS,
