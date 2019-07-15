@@ -244,6 +244,17 @@ class BulkListener(BaseListener):
 
             while successfully_processed_messages:
 
+                self.logger.info(
+                    "deleting the following messages: {messages}".format(
+                        messages=[
+                            MessageMetadata(m)
+                            for m in it.islice(
+                                successfully_processed_messages, 10
+                            )
+                        ]
+                    )
+                )
+
                 successfully_processed_messages = iter(
                     successfully_processed_messages
                 )

@@ -25,7 +25,7 @@ class BaseListener(interfaces.CrewInterface):
     # it will return a meaningless 0.0 value which you are supposed to ignore.
     psutil.cpu_percent()
 
-    def __new__(cls, *args, executor=None, **kwargs):
+    def __new__(cls, executor=None, *args, **kwargs):
         """
         Ensures we only create one threadpool executor per class.
 
@@ -274,14 +274,11 @@ class BaseListener(interfaces.CrewInterface):
 
             self.statsd.increment("process.record.success", 1, tags=[])
 
-            self.queue.delete_messages(
-                Entries=[
-                    {
-                        "Id": message.message_id,
-                        "ReceiptHandle": message.receipt_handle,
-                    }
-                ]
+            self.logger.info(
+                "deleting message: {message}".format(message=metadata)
             )
+
+            message.delete()
 
 
 class StatsDBase(interfaces.StatsDInterface):
