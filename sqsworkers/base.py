@@ -111,6 +111,7 @@ class BaseListener(interfaces.CrewInterface):
             polling_interval: How long to wait in between polls on sqs
             log_level: the logging level for this instance's logger
         """
+
         xor_msg_proc = bool(MessageProcessor) ^ bool(message_processor)
 
         xor_error_msg = f"message_processor and MessageProcessor arguments are mutually exclusive"
@@ -274,14 +275,7 @@ class BaseListener(interfaces.CrewInterface):
 
             self.statsd.increment("process.record.success", 1, tags=[])
 
-            self.queue.delete_messages(
-                Entries=[
-                    {
-                        "Id": message.message_id,
-                        "ReceiptHandle": message.receipt_handle,
-                    }
-                ]
-            )
+            self._executor.submit(message.delete)
 
 
 class StatsDBase(interfaces.StatsDInterface):

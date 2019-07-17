@@ -248,16 +248,19 @@ class BulkListener(BaseListener):
                     successfully_processed_messages
                 )
 
-                self.queue.delete_messages(
-                    Entries=[
-                        {
-                            "Id": message.message_id,
-                            "ReceiptHandle": message.receipt_handle,
-                        }
-                        for message in it.islice(
-                            successfully_processed_messages, 10
-                        )
-                    ]
+                self._executor.submit(
+                    partial(
+                        self.queue.delete_messages,
+                        Entries=[
+                            {
+                                "Id": message.message_id,
+                                "ReceiptHandle": message.receipt_handle,
+                            }
+                            for message in it.islice(
+                                successfully_processed_messages, 10
+                            )
+                        ],
+                    )
                 )
 
                 successfully_processed_messages = list(
