@@ -123,9 +123,6 @@ class BulkListener(BaseListener):
                 )
                 continue
 
-            if self.semaphore is not None:
-                self.semaphore.acquire()
-
             if self.minimum_messages:
                 messages = []
                 start = time.perf_counter()
@@ -180,9 +177,6 @@ class BulkListener(BaseListener):
                 self.statsd.increment(
                     "process.record.start", len(messages), tags=[]
                 )
-
-            if self.semaphore is not None:
-                self.semaphore.release()
 
             time.sleep(self.polling_interval)
 
