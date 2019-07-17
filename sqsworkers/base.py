@@ -90,7 +90,9 @@ class BaseListener(interfaces.CrewInterface):
         wait_time: int = 20,
         polling_interval: Union[int, float] = 0,
         log_level: Optional[int] = None,
-        bounded_semaphore: Optional[threading.BoundedSemaphore] = None,
+        semaphore: Optional[
+            Union[threading.BoundedSemaphore, threading.Semaphore]
+        ] = None,
         **kwargs,
     ):
         """
@@ -112,9 +114,9 @@ class BaseListener(interfaces.CrewInterface):
             wait_time: passed to self.queue.receive_messages(WaitTimeSeconds=...)
             polling_interval: How long to wait in between polls on sqs
             log_level: the logging level for this instance's logger
-            bounded_semaphore: if given, will be acquired before polling and released after processing
+            semaphore: if given, will be acquired before polling and released after processing
         """
-        self.bounded_semaphore = bounded_semaphore
+        self.semaphore = semaphore
 
         xor_msg_proc = bool(MessageProcessor) ^ bool(message_processor)
 
@@ -208,8 +210,8 @@ class BaseListener(interfaces.CrewInterface):
                 )
                 continue
 
-            if self.bounded_semaphore is not None:
-                self.bounded_semaphore.acquire()
+            if self.semaphore is not None:
+                self.semaphore.acquire()
 
             messages = self.queue.receive_messages(
                 AttributeNames=["All"],
@@ -247,8 +249,8 @@ class BaseListener(interfaces.CrewInterface):
 
                     self.statsd.increment("process.record.start", 1, tags=[])
 
-            if self.bounded_semaphore is not None:
-                self.bounded_semaphore.release()
+            if self.semaphore is not None:
+                self.semaphore.release()
 
             time.sleep(self.polling_interval)
 
