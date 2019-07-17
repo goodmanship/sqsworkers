@@ -21,13 +21,17 @@ def timeout():
 
 @pytest.fixture
 def message():
-    return SimpleNamespace(
+    ns = SimpleNamespace(
         message_id="message_id",
         receipt_handle="receipt_handle",
         body=json.dumps(
             {"eventId": "event_id", "type": "type", "schema": "schema"}
         ),
     )
+
+    ns.delete = lambda: None
+
+    return ns
 
 
 @pytest.fixture
@@ -155,7 +159,7 @@ def crew(listeners):
 
 
 def test_crew_starts_and_executes_successfully(
-    crew, future, statsd, sqs_resource, timeout
+    crew, future, statsd, sqs_resource, timeout, listener
 ):
 
     crew.start()
@@ -163,9 +167,6 @@ def test_crew_starts_and_executes_successfully(
     crew.stop(timeout=timeout)
 
     statsd.increment.assert_called()
-
-    if future.exception() is not None:
-        sqs_resource.delete_messages.assert_called()
 
 
 def test_exception_in_listener_threadpool(

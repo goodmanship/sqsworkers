@@ -287,14 +287,7 @@ class BaseListener(interfaces.CrewInterface):
 
             self.statsd.increment("process.record.success", 1, tags=[])
 
-            self.queue.delete_messages(
-                Entries=[
-                    {
-                        "Id": message.message_id,
-                        "ReceiptHandle": message.receipt_handle,
-                    }
-                ]
-            )
+            self._executor.submit(message.delete)
 
 
 class StatsDBase(interfaces.StatsDInterface):
