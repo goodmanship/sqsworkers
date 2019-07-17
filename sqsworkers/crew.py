@@ -158,7 +158,6 @@ class BulkListener(BaseListener):
                 )
 
             if messages:
-                tasks = []
 
                 metadata = [MessageMetadata(m) for m in messages]
 
@@ -169,8 +168,6 @@ class BulkListener(BaseListener):
                 task: futures.Future = self._executor.submit(
                     self.message_processor(messages).start
                 )
-
-                tasks.append(task)
 
                 task.add_done_callback(
                     partial(
@@ -183,8 +180,6 @@ class BulkListener(BaseListener):
                 self.statsd.increment(
                     "process.record.start", len(messages), tags=[]
                 )
-
-                futures.wait(tasks)
 
             if self.bounded_semaphore is not None:
                 self.bounded_semaphore.release()
