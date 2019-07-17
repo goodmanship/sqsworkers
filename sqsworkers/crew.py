@@ -123,6 +123,9 @@ class BulkListener(BaseListener):
                 )
                 continue
 
+            if self.bounded_semaphore is not None:
+                self.bounded_semaphore.acquire()
+
             if self.minimum_messages:
                 messages = []
                 start = time.perf_counter()
@@ -182,6 +185,9 @@ class BulkListener(BaseListener):
                 )
 
                 futures.wait(tasks)
+
+            if self.bounded_semaphore is not None:
+                self.bounded_semaphore.release()
 
             time.sleep(self.polling_interval)
 
