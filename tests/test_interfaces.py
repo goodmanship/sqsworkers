@@ -1,7 +1,7 @@
-from sqsworkers.interfaces import CrewInterface, StatsDInterface
-from sqsworkers.base import StatsDBase
-
 import pytest
+
+from sqsworkers.interfaces import CrewInterface, StatsDInterface
+from sqsworkers.listeners import StatsDBase
 
 
 @pytest.fixture

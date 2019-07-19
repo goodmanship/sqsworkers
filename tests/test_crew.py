@@ -4,9 +4,9 @@ from unittest import mock
 
 import pytest
 
-from sqsworkers.base import StatsDBase
 from sqsworkers.crew import Crew, BaseListener, BulkListener
 from sqsworkers.interfaces import CrewInterface
+from sqsworkers.listeners import StatsDBase
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ def future(request, message, messages):
 @pytest.fixture
 def executor(future):
     with mock.patch(
-        "concurrent.futures.ThreadPoolExecutor", autospec=True
+        "sqsworkers.bounded_executor.BoundedThreadPoolExecutor", autospec=True
     ) as ThreadPoolExecutor:
         executor = ThreadPoolExecutor()
         executor.submit.return_value = future
