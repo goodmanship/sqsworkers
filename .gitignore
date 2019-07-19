@@ -4,6 +4,7 @@
 .cache
 .coverage
 .eggs
+.hypothesis
 .idea/
 /.ve/
 /__pycache__/

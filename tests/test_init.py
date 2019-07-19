@@ -1,6 +1,7 @@
-from sqsworkers import MessageMetadata
-from types import SimpleNamespace
 import json
+from types import SimpleNamespace
+
+from sqsworkers import MessageMetadata
 
 
 def test_metadata():
