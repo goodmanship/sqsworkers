@@ -13,7 +13,7 @@ class BoundedThreadPoolExecutor:
         self.semaphore = (
             bounded_semaphore
             if bounded_semaphore is not None
-            else BoundedSemaphore(value=self.executor._max_workers)
+            else BoundedSemaphore(value=self.executor._max_workers * 10)
         )
 
     def submit(self, fn, *args, **kwargs):

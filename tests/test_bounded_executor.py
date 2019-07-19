@@ -20,12 +20,12 @@ def bounded_executor(max_workers):
 @pytest.fixture
 def strings():
     return [
-        "".join(random.choices(string.ascii_letters, k=5)) for _ in range(5)
+        "".join(random.choices(string.ascii_letters, k=5)) for _ in range(500)
     ]
 
 
 def test_semaphore_is_set_correctly(bounded_executor, max_workers):
-    assert bounded_executor.semaphore._value == max_workers
+    assert bounded_executor.semaphore._value == max_workers * 10
 
 
 def test_executor_function(bounded_executor, strings):
