@@ -1,7 +1,7 @@
 import os
 from setuptools import setup, find_packages
 
-VERSION = "0.2.4"
+VERSION = "0.2.5"
 DEVELOPMENT_REQUIREMENTS = [
     "pytest",
     "coverage",
