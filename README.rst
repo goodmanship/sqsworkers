@@ -19,8 +19,8 @@ A basic call to SQS Workers would look like this:
 
 
     crew = Crew(
-        sqs_session=my_session,
-        queue_name=my_queue_name,
+        sqs_session=session,
+        queue_name=queue_name,
         message_processor=lambda msg: f"hello, {msg}"
     )
 
