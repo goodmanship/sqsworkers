@@ -56,7 +56,9 @@ class BaseListener(interfaces.CrewInterface):
 
         if not hasattr(cls, "_executor"):
             cls._executor = (
-                BoundedThreadPoolExecutor() if executor is None else executor
+                executor
+                if executor is not None
+                else BoundedThreadPoolExecutor()
             )
 
             atexit.register(cls._executor.shutdown)
@@ -90,6 +92,7 @@ class BaseListener(interfaces.CrewInterface):
         wait_time: int = 20,
         polling_interval: Union[int, float] = 0,
         log_level: Optional[int] = None,
+        executor=None,
         **kwargs,
     ):
         """
@@ -111,7 +114,12 @@ class BaseListener(interfaces.CrewInterface):
             wait_time: passed to self.queue.receive_messages(WaitTimeSeconds=...)
             polling_interval: How long to wait in between polls on sqs
             log_level: the logging level for this instance's logger
+            executor: a concurrent.futures.Executor-like instance (must have a submit method that
+                                                                   returns a future
+                                                                   )
         """
+        if executor is not None:
+            self._executor = executor
 
         xor_msg_proc = bool(MessageProcessor) ^ bool(message_processor)
 
