@@ -234,7 +234,7 @@ class BaseListener(interfaces.CrewInterface):
                     self.logger.info(f"processing message: {metadata}")
 
                     function = (
-                        self.message_processor(message)
+                        self.message_processor(message).start
                         if hasattr(self.message_processor, "start")
                         else self.message_processor
                     )
@@ -393,9 +393,13 @@ class BulkListener(BaseListener):
                     f"processing the following {len(messages)} messages in bulk: {metadata}"
                 )
 
-                task: futures.Future = self._executor.submit(
+                function = (
                     self.message_processor(messages).start
+                    if hasattr(self.message_processor, "start")
+                    else self.message_processor
                 )
+
+                task: futures.Future = self._executor.submit(function)
 
                 task.add_done_callback(
                     partial(
