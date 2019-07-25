@@ -26,7 +26,7 @@ class BaseListener(interfaces.CrewInterface):
     # it will return a meaningless 0.0 value which you are supposed to ignore.
     psutil.cpu_percent()
 
-    def __new__(cls, *args, executor=None, **kwargs):
+    def __new__(cls, executor=None, *args, **kwargs):
         """
         Ensures we only create one threadpool executor per class.
 
@@ -307,10 +307,10 @@ class BulkListener(BaseListener):
 
     def __init__(
         self,
-        *args,
         minimum_messages: Optional[int] = None,
         max_number_of_messages: Optional[int] = None,
         timeout: int = 30,
+        *args,
         **kwargs,
     ):
         """

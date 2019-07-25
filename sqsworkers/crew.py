@@ -11,11 +11,11 @@ class Crew(interfaces.CrewInterface):
 
     def __init__(
         self,
-        *args,
         worker_limit: int = 32,
         listeners=None,
         bulk_mode=False,
         executor=None,
+        *args,
         **kwargs,
     ):
         """Instantiate a daemon thread with either a regular or bulk listener."""

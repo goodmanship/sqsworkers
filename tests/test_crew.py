@@ -85,9 +85,10 @@ def sqs_resource(message):
     return _mock_
 
 
-@pytest.fixture(params=['legacy', 'callable'])
+@pytest.fixture(params=["legacy", "callable"])
 def message_processor(request):
-    if request.param == 'legacy':
+    if request.param == "legacy":
+
         class MessageProcessor(CrewInterface):
             def __init__(self, argument):
                 """"""
