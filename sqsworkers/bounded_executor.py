@@ -3,9 +3,14 @@ from threading import BoundedSemaphore
 
 
 class BoundedThreadPoolExecutor:
-    """BoundedExecutor behaves as a ThreadPoolExecutor which will block on
-    calls to submit() once the limit given as "bound" work items are queued for
-    execution.
+    """
+    This executor implements a subset of the concurrent.futures.Executor API.
+
+    The main difference is that one can choose to set a limit on the executor's
+    worker queue -- making it so that calls to .submit will block one that
+    limit is reached.
+
+    By default; 10 messages can be enqueued per-thread.
     """
 
     def __init__(
