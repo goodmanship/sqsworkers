@@ -129,9 +129,9 @@ class BaseListener(interfaces.CrewInterface):
 
         message_processor = message_processor or MessageProcessor
 
-        assert issubclass(
+        assert callable(message_processor) or issubclass(
             message_processor, interfaces.CrewInterface
-        ), f"{message_processor.__name__} does not conform to {interfaces.CrewInterface.__name__}"
+        ), f"{message_processor.__name__} does not conform to {interfaces.CrewInterface.__name__} and isn't callable"
 
         self.message_processor = message_processor
 
@@ -233,9 +233,13 @@ class BaseListener(interfaces.CrewInterface):
 
                     self.logger.info(f"processing message: {metadata}")
 
-                    task: futures.Future = self._executor.submit(
-                        self.message_processor(message).start
+                    function = (
+                        self.message_processor(message)
+                        if hasattr(self.message_processor, "start")
+                        else self.message_processor
                     )
+
+                    task: futures.Future = self._executor.submit(function)
 
                     self.logger.info(f"processing task: {task}")
 

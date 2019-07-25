@@ -15,21 +15,13 @@ A basic call to SQS Workers would look like this:
 
 .. code:: python
 
-    from sqsworkers import MessageMetadata
     from sqsworkers.crew import Crew
 
-
-    class MyMessageProcessor:
-        def __init__(self, msg):
-            self.metadata = MessageMetadata(msg)
-
-        def start(self):
-            print(f"metadata: {self.metadata}")
 
     crew = Crew(
         sqs_session=my_session,
         queue_name=my_queue_name,
-        message_processor=MyMessageProcessor
+        message_processor=lambda msg: f"hello, {msg}"
     )
 
     crew.start()

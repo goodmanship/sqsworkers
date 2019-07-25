@@ -85,18 +85,21 @@ def sqs_resource(message):
     return _mock_
 
 
-@pytest.fixture
-def message_processor():
-    class MessageProcessor(CrewInterface):
-        def __init__(self, argument):
-            """"""
+@pytest.fixture(params=['legacy', 'callable'])
+def message_processor(request):
+    if request.param == 'legacy':
+        class MessageProcessor(CrewInterface):
+            def __init__(self, argument):
+                """"""
 
-        def start(self):
-            """"""
+            def start(self):
+                """"""
 
-    _mock_ = mock.MagicMock(spec=MessageProcessor)
-    _mock_.__mro__ = [MessageProcessor]
-    return _mock_
+        _mock_ = mock.MagicMock(spec=MessageProcessor)
+        _mock_.__mro__ = [MessageProcessor]
+        return _mock_
+    else:
+        return mock.Mock()
 
 
 @pytest.fixture
