@@ -8,8 +8,18 @@ class BoundedThreadPoolExecutor:
     execution.
     """
 
-    def __init__(self, bounded_semaphore=None, *args, **kwargs):
-        self.executor = futures.ThreadPoolExecutor(*args, **kwargs)
+    def __init__(
+        self,
+        bounded_semaphore=None,
+        thread_pool_executor=None,
+        *args,
+        **kwargs
+    ):
+        self.executor = (
+            thread_pool_executor
+            if thread_pool_executor is not None
+            else futures.ThreadPoolExecutor(*args, **kwargs)
+        )
         self.semaphore = (
             bounded_semaphore
             if bounded_semaphore is not None
