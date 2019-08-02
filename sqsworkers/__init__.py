@@ -6,7 +6,7 @@ from typing import Any
 from dataclasses import dataclass, field, InitVar
 
 
-@dataclass
+@dataclass(init=False)
 class MessageMetadata:
     """
     Defines the metadata received from a message's body.
@@ -17,7 +17,7 @@ class MessageMetadata:
     event_type: str = field(init=False)
     schema: Any = field(init=False)
 
-    def __post_init__(self, message: Any):
+    def __init__(self, message: Any):
         body: dict = json.loads(message.body)
         self.event_id = body.get("eventId", "")
         self.event_type = body.get("type", "")

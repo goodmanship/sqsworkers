@@ -236,7 +236,7 @@ class BaseListener(interfaces.CrewInterface):
                     function = (
                         self.message_processor(message).start
                         if hasattr(self.message_processor, "start")
-                        else self.message_processor
+                        else partial(self.message_processor, message)
                     )
 
                     task: futures.Future = self._executor.submit(function)
@@ -396,7 +396,7 @@ class BulkListener(BaseListener):
                 function = (
                     self.message_processor(messages).start
                     if hasattr(self.message_processor, "start")
-                    else self.message_processor
+                    else partial(self.message_processor, messages)
                 )
 
                 task: futures.Future = self._executor.submit(function)

@@ -1,9 +1,12 @@
 import json
+from concurrent import futures
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from dataclasses import asdict
 
+from sqsworkers import MessageMetadata
 from sqsworkers.crew import Crew, BaseListener, BulkListener
 from sqsworkers.interfaces import CrewInterface
 from sqsworkers.listeners import StatsDBase
@@ -66,6 +69,13 @@ def executor(future):
         executor = ThreadPoolExecutor()
         executor.submit.return_value = future
         yield executor
+
+
+@pytest.fixture
+def tp_executor():
+    """Standard threadpool executor."""
+    with futures.ThreadPoolExecutor(max_workers=1) as ex:
+        yield ex
 
 
 @pytest.fixture
@@ -259,3 +269,21 @@ def test_exceptions_captured_by_sentry(
         listener.start()
 
     sentry.captureException.assert_called()
+
+
+def test_basic_crew(sqs_resource, sqs_session, message, capsys, tp_executor):
+    # sqs_resource.receive_messages = lambda *args, **kwargs: [message]
+    get_output_string = lambda msg: str(asdict(MessageMetadata(msg)))
+    crew = Crew(
+        sqs_session=sqs_session,
+        sqs_resource=sqs_resource,
+        message_processor=lambda msg: print(get_output_string(msg)),
+        max_workers=1,
+        executor=tp_executor,
+    )
+
+    crew.start()
+
+    stdout, stderr = capsys.readouterr()
+
+    assert get_output_string(message) in stdout
