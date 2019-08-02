@@ -272,8 +272,9 @@ def test_exceptions_captured_by_sentry(
 
 
 def test_basic_crew(sqs_resource, sqs_session, message, capsys, tp_executor):
-    # sqs_resource.receive_messages = lambda *args, **kwargs: [message]
+
     get_output_string = lambda msg: str(asdict(MessageMetadata(msg)))
+
     crew = Crew(
         sqs_session=sqs_session,
         sqs_resource=sqs_resource,
