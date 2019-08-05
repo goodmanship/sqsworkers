@@ -26,7 +26,7 @@ class BaseListener(interfaces.CrewInterface):
     # it will return a meaningless 0.0 value which you are supposed to ignore.
     psutil.cpu_percent()
 
-    def __new__(cls, *args, executor=None, **kwargs):
+    def __new__(cls, executor=None, *args, **kwargs):
         """
         Ensures we only create one threadpool executor per class.
 
@@ -56,7 +56,9 @@ class BaseListener(interfaces.CrewInterface):
 
         if not hasattr(cls, "_executor"):
             cls._executor = (
-                BoundedThreadPoolExecutor() if executor is None else executor
+                executor
+                if executor is not None
+                else BoundedThreadPoolExecutor()
             )
 
             atexit.register(cls._executor.shutdown)
@@ -90,6 +92,7 @@ class BaseListener(interfaces.CrewInterface):
         wait_time: int = 20,
         polling_interval: Union[int, float] = 0,
         log_level: Optional[int] = None,
+        executor=None,
         **kwargs,
     ):
         """
@@ -111,7 +114,12 @@ class BaseListener(interfaces.CrewInterface):
             wait_time: passed to self.queue.receive_messages(WaitTimeSeconds=...)
             polling_interval: How long to wait in between polls on sqs
             log_level: the logging level for this instance's logger
+            executor: a concurrent.futures.Executor-like instance (must have a submit method that
+                                                                   returns a future
+                                                                   )
         """
+        if executor is not None:
+            self._executor = executor
 
         xor_msg_proc = bool(MessageProcessor) ^ bool(message_processor)
 
@@ -121,9 +129,9 @@ class BaseListener(interfaces.CrewInterface):
 
         message_processor = message_processor or MessageProcessor
 
-        assert issubclass(
+        assert callable(message_processor) or issubclass(
             message_processor, interfaces.CrewInterface
-        ), f"{message_processor.__name__} does not conform to {interfaces.CrewInterface.__name__}"
+        ), f"{message_processor.__name__} does not conform to {interfaces.CrewInterface.__name__} and isn't callable"
 
         self.message_processor = message_processor
 
@@ -225,9 +233,13 @@ class BaseListener(interfaces.CrewInterface):
 
                     self.logger.info(f"processing message: {metadata}")
 
-                    task: futures.Future = self._executor.submit(
+                    function = (
                         self.message_processor(message).start
+                        if hasattr(self.message_processor, "start")
+                        else partial(self.message_processor, message)
                     )
+
+                    task: futures.Future = self._executor.submit(function)
 
                     self.logger.info(f"processing task: {task}")
 
@@ -295,10 +307,10 @@ class BulkListener(BaseListener):
 
     def __init__(
         self,
-        *args,
         minimum_messages: Optional[int] = None,
         max_number_of_messages: Optional[int] = None,
         timeout: int = 30,
+        *args,
         **kwargs,
     ):
         """
@@ -381,9 +393,13 @@ class BulkListener(BaseListener):
                     f"processing the following {len(messages)} messages in bulk: {metadata}"
                 )
 
-                task: futures.Future = self._executor.submit(
+                function = (
                     self.message_processor(messages).start
+                    if hasattr(self.message_processor, "start")
+                    else partial(self.message_processor, messages)
                 )
+
+                task: futures.Future = self._executor.submit(function)
 
                 task.add_done_callback(
                     partial(

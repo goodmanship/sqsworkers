@@ -3,13 +3,28 @@ from threading import BoundedSemaphore
 
 
 class BoundedThreadPoolExecutor:
-    """BoundedExecutor behaves as a ThreadPoolExecutor which will block on
-    calls to submit() once the limit given as "bound" work items are queued for
-    execution.
+    """
+    This executor implements a subset of the concurrent.futures.Executor API.
+
+    The main difference is that one can choose to set a limit on the executor's
+    worker queue -- making it so that calls to .submit will block one that
+    limit is reached.
+
+    By default; 10 messages can be enqueued per-thread.
     """
 
-    def __init__(self, bounded_semaphore=None, *args, **kwargs):
-        self.executor = futures.ThreadPoolExecutor(*args, **kwargs)
+    def __init__(
+        self,
+        bounded_semaphore=None,
+        thread_pool_executor=None,
+        *args,
+        **kwargs
+    ):
+        self.executor = (
+            thread_pool_executor
+            if thread_pool_executor is not None
+            else futures.ThreadPoolExecutor(*args, **kwargs)
+        )
         self.semaphore = (
             bounded_semaphore
             if bounded_semaphore is not None

@@ -1,9 +1,12 @@
 import json
+from concurrent import futures
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from dataclasses import asdict
 
+from sqsworkers import MessageMetadata
 from sqsworkers.crew import Crew, BaseListener, BulkListener
 from sqsworkers.interfaces import CrewInterface
 from sqsworkers.listeners import StatsDBase
@@ -69,6 +72,13 @@ def executor(future):
 
 
 @pytest.fixture
+def tp_executor():
+    """Standard threadpool executor."""
+    with futures.ThreadPoolExecutor(max_workers=1) as ex:
+        yield ex
+
+
+@pytest.fixture
 def statsd():
     return mock.Mock(spec=StatsDBase)
 
@@ -85,18 +95,22 @@ def sqs_resource(message):
     return _mock_
 
 
-@pytest.fixture
-def message_processor():
-    class MessageProcessor(CrewInterface):
-        def __init__(self, argument):
-            """"""
+@pytest.fixture(params=["legacy", "callable"])
+def message_processor(request):
+    if request.param == "legacy":
 
-        def start(self):
-            """"""
+        class MessageProcessor(CrewInterface):
+            def __init__(self, argument):
+                """"""
 
-    _mock_ = mock.MagicMock(spec=MessageProcessor)
-    _mock_.__mro__ = [MessageProcessor]
-    return _mock_
+            def start(self):
+                """"""
+
+        _mock_ = mock.MagicMock(spec=MessageProcessor)
+        _mock_.__mro__ = [MessageProcessor]
+        return _mock_
+    else:
+        return mock.Mock()
 
 
 @pytest.fixture
@@ -255,3 +269,22 @@ def test_exceptions_captured_by_sentry(
         listener.start()
 
     sentry.captureException.assert_called()
+
+
+def test_basic_crew(sqs_resource, sqs_session, message, capsys, tp_executor):
+
+    get_output_string = lambda msg: str(asdict(MessageMetadata(msg)))
+
+    crew = Crew(
+        sqs_session=sqs_session,
+        sqs_resource=sqs_resource,
+        message_processor=lambda msg: print(get_output_string(msg)),
+        max_workers=1,
+        executor=tp_executor,
+    )
+
+    crew.start()
+
+    stdout, stderr = capsys.readouterr()
+
+    assert get_output_string(message) in stdout
