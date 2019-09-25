@@ -4,11 +4,9 @@
 .cache
 .coverage
 .eggs
-.hypothesis
 .idea/
 /.ve/
 /__pycache__/
 /build/
 /dist/
 /demo/.ve/
-venv/
