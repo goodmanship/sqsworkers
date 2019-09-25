@@ -11,6 +11,9 @@ Versions
 ========
 
 ::
+    0.2.1 - revert to best known working version 0.1.12
+    0.2.0 - rewrite implemention on top of concurrent.futures; adds tests
+    0.1.13 - support bulk message processor 
     0.1.12 - adding exception handler
     0.1.11 - customize queue polling
     0.1.10 - increase to max wait time for polling

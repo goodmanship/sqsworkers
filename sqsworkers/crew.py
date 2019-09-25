@@ -65,7 +65,6 @@ class Crew():
         self.worker_limit = kwargs['worker_limit'] if 'worker_limit' in kwargs else 10
         self.max_number_of_messages = kwargs['max_number_of_messages'] if 'max_number_of_messages' in kwargs else 1
         self.wait_time = kwargs['wait_time'] if 'wait_time' in kwargs else 20
-        self.bulk_mode = kwargs['bulk_mode'] if 'bulk_mode' in kwargs else False
         self.exception_handler_function = kwargs['exception_handler'] if 'exception_handler' in kwargs else \
                                           'default_exception_handler'
 
@@ -130,7 +129,6 @@ class Worker(CrewMember):
         self.crew.logger.info('new worker starting with name: %s' % (self.worker_name))
         self.logger = logging.LoggerAdapter(self.crew.logger, extra={'extra': {'worker_name': self.worker_name, 'crew.name': self.crew.name}})
         self.logger = self.crew.logger
-        self.bulk_mode = self.crew.bulk_mode
         self.exception_handler_function = self.crew.exception_handler_function
         CrewMember.__init__(self)
 
@@ -155,95 +153,39 @@ class Worker(CrewMember):
             'connected to sqs, approx. %s msgs on queue' %
             self.queue.attributes['ApproximateNumberOfMessages']
         )
-        self.poll_queue()
 
-    def poll_queue(self):
-        while self.employed:
-            messages = self.queue.receive_messages(
-                AttributeNames=['All'],
-                MessageAttributeNames=['All'],
-                MaxNumberOfMessages=self.max_number_of_messages,
-                WaitTimeSeconds=self.wait_time)
-            if len(messages) > 0:
-                for message in messages:
-                    try:
-                        self.logger.info('processing %s messages %s' % (len(messages), messages))
-                        processor = self.crew.MessageProcessor(message)
-                        self.crew.statsd.increment('process.record.start', 1, tags=[])
-                        processed = processor.start()
-                        if processed:
-                            deleted = self.queue.delete_messages(
-                                Entries=[{
-                                    'Id': message.message_id,
-                                    'ReceiptHandle': message.receipt_handle
-                                }]
-                            )
-                            self.crew.statsd.increment('process.record.success', 1, tags=[])
-                            self.logger.info('%s messages processed successfully and deleted %s' % (len(messages), deleted))
-                        else:
-                            self.crew.statsd.increment('process.record.failure', 1, tags=[])
-                    except Exception as e:
-                        # select which exception handler to call based on the argument passed
-                        getattr(self, self.exception_handler_function)(e, message)
-                        # continue with the next message and do not delete
-                        pass
+        self.executor = (
+            executor if executor is not None else BoundedThreadPoolExecutor()
+        )
 
-    # custom exception handler function
-    def custom_exception_handler(self, e, message):
-        failed_message_body = json.loads(message.body)
-        failed_streamhub_event_id = failed_message_body.get('eventId')
-        failed_streamhub_event_type = failed_message_body.get('type')
-        failed_streamhub_event_schema = failed_message_body.get('schema')
-        extra_info = {
-            'streamhub_event_id': failed_streamhub_event_id,
-            'streamhub_event_type': failed_streamhub_event_type,
-            'streamhub_event_schema': failed_streamhub_event_schema
-        }
-        self.logger.error('There was an error processing the message %s' % e)
-        self.logger.error(extra_info)
+        self._listeners = (
+            [
+                (
+                    BaseListener(*args, executor=executor, **kwargs)
+                    if not bulk_mode
+                    else BulkListener(*args, executor=executor, **kwargs)
+                )
+                for _ in range(worker_limit)
+            ]
+            if listeners is None
+            else listeners
+        )
 
-    # default exception handler function - this is called by default if no exception handler is specified while instantiating the crew
-    def default_exception_handler(self, e, message):
-        self.logger.error('There was an error processing the message %s' % e)
+        self._daemons = [
+            Thread(name=listener.name, target=listener.start, daemon=True)
+            for listener in self._listeners
+        ]
 
-class Supervisor(CrewMember):
-    def __init__(self, crew):
-        self._real_run = self.run
-        self.run = self._wrap_run
-        self.supervisor_name = 'supervisor-%s-%s' % (os.getpid(), str(time.time()))
-        self.crew = crew
-        CrewMember.__init__(self)
+    def start(self):
+        """Start listener in background thread."""
+        logging.info("starting background listener thread")
+        for daemon in self._daemons:
+            daemon.start()
 
-    def _wrap_run(self):
-        try:
-            self._real_run()
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except Exception as e:
-            self.crew.sentry.captureException() if self.crew.sentry else None
-            log_uncaught_exception(e, logger=self.crew.logger, context={'supervisor_name': self.supervisor_name, 'crew.name': self.crew.name})
-            self._wrap_run()
+    def join(self, timeout=0.1):
+        logging.info("waiting on background thread to finish")
+        for daemon in self._daemons:
+            daemon.join(timeout=timeout)
 
-    def run(self):
-        while self.employed:
-            self.supervise()
-            time.sleep(30)
-
-    def supervise(self):
-        good_workers = []
-        self.crew.logger.info('supervising %s worker on workers: %s' % (self.supervisor_name, self.crew.workers))
-        for worker in self.crew.workers:
-            if worker.is_alive():
-                self.crew.logger.info('worker %s is alive' % (worker.worker_name))
-                good_workers.append(worker)
-            else:
-                self.crew.logger.warn('worker %s is dead, hiring a new one...' % (worker.worker_name))
-                self.crew.statsd.increment('workers.dead', 1, tags=[self.crew.name])
-                new_worker = Worker(self.crew)
-                self.crew.logger.info('hired a new worker %s, staring it up...' % (new_worker.worker_name))
-                new_worker.start()
-                self.crew.logger.info('started a new worker %s' % (new_worker.worker_name))
-                good_workers.append(new_worker)
-        self.crew.logger.info('total number of workers after supervision: %s' % (str(len(good_workers))))
-        self.crew.statsd.gauge('workers.employed', len(good_workers), tags=[self.crew.name])
-        self.crew.workers = good_workers
+    def stop(self, timeout=0.1):
+        self.join(timeout=timeout)

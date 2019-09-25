@@ -4,6 +4,7 @@
 .cache
 .coverage
 .eggs
+.idea/
 /.ve/
 /__pycache__/
 /build/
