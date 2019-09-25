@@ -65,7 +65,6 @@ class Crew():
         self.worker_limit = kwargs['worker_limit'] if 'worker_limit' in kwargs else 10
         self.max_number_of_messages = kwargs['max_number_of_messages'] if 'max_number_of_messages' in kwargs else 1
         self.wait_time = kwargs['wait_time'] if 'wait_time' in kwargs else 20
-        
         self.bulk_mode = kwargs['bulk_mode'] if 'bulk_mode' in kwargs else False
         self.exception_handler_function = kwargs['exception_handler'] if 'exception_handler' in kwargs else \
                                           'default_exception_handler'
