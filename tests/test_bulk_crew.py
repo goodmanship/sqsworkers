@@ -124,7 +124,7 @@ class TestBulkProcessing(unittest.TestCase):
     
     def test_bulk_poll_queue_success(self):
         """
-        Assert output from BulkMsgprocessor and TestWorker
+        Assert output from BulkMsgprocessor and TestWorker for all successful records
         """
         results: List[crew.MessageProcessorResult] = BulkMsgProcessor.start(self)
         expected_msg1: crew.Message = deepcopy(self.messages[0])
@@ -137,7 +137,7 @@ class TestBulkProcessing(unittest.TestCase):
 
     def test_bulk_poll_queue_partial_success(self):
         """
-        Assert output from BulkMsgprocessor and TestWorker
+        Assert output from BulkMsgprocessor and TestWorker for partial failures
         """
         results: List[crew.MessageProcessorResult] = BulkMsgProcessor.start_partial_failures(self)
         expected_msg1: crew.Message = deepcopy(self.messages[0])
@@ -150,7 +150,7 @@ class TestBulkProcessing(unittest.TestCase):
 
     def test_bulk_poll_queue_failures(self):
         """
-        Assert output from BulkMsgprocessor and TestWorker
+        Assert output from BulkMsgprocessor and TestWorker for failed records
         """
         results: List[crew.MessageProcessorResult] = BulkMsgProcessor.start_failures(self)
         expected_msg1: crew.Message = deepcopy(self.messages[0])
