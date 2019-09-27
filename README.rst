@@ -44,7 +44,25 @@ A basic call to SQS Workers would look like this:
       }
       c = Crew(**options)
 
-You can see a simple demo app `here <demo/basic_message_processor.py>`__
+
+A basic call to SQS Workers for Bulk Processing would look like this:
+
+.. code:: python
+
+    options = {
+        'sqs_session': sqs_session,
+        'queue_name': 'ddev-test-queue',
+        'sqs_resource': sqs_resource,
+        'MessageProcessor': MsgProcessor,
+        'logger': msg_logger,
+        'statsd': statsd,
+        'sentry': None,
+        'worker_limit': 1,
+        'bulk_mode': True
+
+      }
+      c = Crew(**options)
+
 
 Installation
 ============
