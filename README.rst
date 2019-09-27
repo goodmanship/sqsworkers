@@ -10,7 +10,7 @@ cannot (as of right now) be used in conjunction with SQS.
 Versions
 ========
 
-::
+::  1.2 - support for bulk processing
     1.1 - revert to best known working version 0.1.12
     0.2.0 - rewrite implemention on top of concurrent.futures; adds tests
     0.1.13 - support bulk message processor 
