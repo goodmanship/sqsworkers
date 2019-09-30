@@ -1,11 +1,14 @@
 import logging
 import os
 import re
-from threading import Thread, currentThread
 import time
 import traceback
 import json
 import sys
+from threading import Thread, currentThread
+from dataclasses import dataclass
+from typing import Dict, Any, List
+from enum import Enum
 
 
 # logging util function
@@ -32,6 +35,35 @@ class DummyStatsd():
 
     def gauge(self, *args, **kwargs):
         self.logger.info("datadog gauge reported")
+
+
+@dataclass
+class Message:
+    typ: List[str]
+    headers: Dict[str, Any]
+    body: Dict[str, Any]
+
+
+class ResultStatus(Enum):
+    """
+    Represents the status of an operation.
+    """
+    SUCCESS = 0
+    ERROR = 2000
+    ERROR_OP_EXCEPTION = 2001
+    ERROR_OP_MESSAGES_LIMIT = 2002
+    ERROR_OP_MISSING_EVENT_TYPE = 2003
+    ERROR_OP_TIMEOUT = 2004
+
+
+@dataclass
+class MessageProcessorResult:
+    """
+    Represents the result from the bulk operation.
+    The message is the outcome of the operation.
+    """
+    message: Message
+    status: ResultStatus
 
 
 class Crew():
@@ -65,6 +97,7 @@ class Crew():
         self.worker_limit = kwargs['worker_limit'] if 'worker_limit' in kwargs else 10
         self.max_number_of_messages = kwargs['max_number_of_messages'] if 'max_number_of_messages' in kwargs else 1
         self.wait_time = kwargs['wait_time'] if 'wait_time' in kwargs else 20
+        self.bulk_mode = kwargs['bulk_mode'] if 'bulk_mode' in kwargs else False
         self.exception_handler_function = kwargs['exception_handler'] if 'exception_handler' in kwargs else \
                                           'default_exception_handler'
 
@@ -126,6 +159,7 @@ class Worker(CrewMember):
         self.queue_name = self.crew.queue_name
         self.max_number_of_messages = self.crew.max_number_of_messages
         self.wait_time = self.crew.wait_time
+        self.bulk_mode = self.crew.bulk_mode
         self.crew.logger.info('new worker starting with name: %s' % (self.worker_name))
         self.logger = logging.LoggerAdapter(self.crew.logger, extra={'extra': {'worker_name': self.worker_name, 'crew.name': self.crew.name}})
         self.logger = self.crew.logger
@@ -153,7 +187,10 @@ class Worker(CrewMember):
             'connected to sqs, approx. %s msgs on queue' %
             self.queue.attributes['ApproximateNumberOfMessages']
         )
-        self.poll_queue()
+        if self.bulk_mode:
+            self.bulk_poll_queue()
+        else:
+            self.poll_queue()
 
     def poll_queue(self):
         while self.employed:
@@ -186,6 +223,44 @@ class Worker(CrewMember):
                         # continue with the next message and do not delete
                         pass
 
+    def bulk_poll_queue(self):
+        """
+        Function to handle batch reading from SQS and forward the list to the message processor
+        """
+        # lists to store failed and successful entries per worker thread
+        failed_entries = []
+        successful_entries = []
+        while self.employed:
+            messages = self.queue.receive_messages(
+                AttributeNames=['All'],
+                MessageAttributeNames=['All'],
+                MaxNumberOfMessages=self.max_number_of_messages,
+                WaitTimeSeconds=self.wait_time)
+            if len(messages) > 0:
+                try:
+                    self.logger.info('processing %s messages %s' % (len(messages), messages))
+                    # forward the list to the bulk message processor
+                    processor = self.crew.MessageProcessor(messages)
+                    self.crew.statsd.increment('process.record.start', len(messages), tags=[])
+                    # expecting a list of MessageProcessorResult from the bulk message processor
+                    results:MessageProcessorResult = processor.start()
+                    for msg_result in results:
+                        if msg_result.status.name != 'SUCCESS':
+                            failed_entries.append({"Id": msg_result.message.message_id, "ReceiptHandle": msg_result.message.receipt_handle})
+                            # continue with the next message and do not delete
+                            continue
+                        else:
+                            successful_entries.append({"Id": msg_result.message.message_id, "ReceiptHandle": msg_result.message.receipt_handle})
+                    # delete successful entries from the queue
+                    if len(successful_entries) > 0:
+                        self.queue.delete_messages(Entries=successful_entries)
+                except Exception as e:
+                    # select which exception handler to call based on the argument passed
+                    for message in messages:
+                        getattr(self, self.exception_handler_function)(e, message)
+                    # continue with the next message and do not delete
+                    pass
+
     # custom exception handler function
     def custom_exception_handler(self, e, message):
         failed_message_body = json.loads(message.body)
@@ -203,6 +278,7 @@ class Worker(CrewMember):
     # default exception handler function - this is called by default if no exception handler is specified while instantiating the crew
     def default_exception_handler(self, e, message):
         self.logger.error('There was an error processing the message %s' % e)
+
 
 class Supervisor(CrewMember):
     def __init__(self, crew):
@@ -235,7 +311,7 @@ class Supervisor(CrewMember):
                 self.crew.logger.info('worker %s is alive' % (worker.worker_name))
                 good_workers.append(worker)
             else:
-                self.crew.logger.warn('worker %s is dead, hiring a new one...' % (worker.worker_name))
+                self.crew.logger.warning('worker %s is dead, hiring a new one...' % (worker.worker_name))
                 self.crew.statsd.increment('workers.dead', 1, tags=[self.crew.name])
                 new_worker = Worker(self.crew)
                 self.crew.logger.info('hired a new worker %s, staring it up...' % (new_worker.worker_name))

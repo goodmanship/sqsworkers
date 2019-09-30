@@ -10,7 +10,7 @@ cannot (as of right now) be used in conjunction with SQS.
 Versions
 ========
 
-::
+::  1.2 - support for bulk processing
     1.1 - revert to best known working version 0.1.12
     0.2.0 - rewrite implemention on top of concurrent.futures; adds tests
     0.1.13 - support bulk message processor 
@@ -44,7 +44,25 @@ A basic call to SQS Workers would look like this:
       }
       c = Crew(**options)
 
-You can see a simple demo app `here <demo/basic_message_processor.py>`__
+
+A basic call to SQS Workers for Bulk Processing would look like this:
+
+.. code:: python
+
+    options = {
+        'sqs_session': sqs_session,
+        'queue_name': 'ddev-test-queue',
+        'sqs_resource': sqs_resource,
+        'MessageProcessor': MsgProcessor,
+        'logger': msg_logger,
+        'statsd': statsd,
+        'sentry': None,
+        'worker_limit': 1,
+        'bulk_mode': True
+
+      }
+      c = Crew(**options)
+
 
 Installation
 ============
